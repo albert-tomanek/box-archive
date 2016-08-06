@@ -1,0 +1,40 @@
+BOX Archives
+============
+
+Format v1
+---------
+
+	Note, that this format version has limitations, as it is still in development.
+	For a manually-created example, see format_v1.box
+
+	Binary file:
+
+	Offset		Length			Value		Description
+
+	0			2				"AT"		File Identifier
+	2			1				uint8_t		File version  (0x01)
+	3			1				0x00		padding
+	4			2				uint16_t	header_length
+	6			2				0x00, 0x00	padding
+	8 [			spec. at off.	ASCII text  Here goes the header XML file* .
+	] 9			2				0x00, 0xFF	End-of-header marker.
+	10							Binary data	The file data referred to by offsets stored in the deader XML file.
+	11			2				0x00, 0xFF	End of file marker.
+
+	XML Header:
+		Allowed tags:
+			<header>
+
+			<dir name="" owner="">
+				name  = The directory name
+				owner = The directory owner
+
+			<file name="" owner="" size="" start="">
+				name  = The file name
+				owner = The file's owner
+				size  = The file's size in bytes.
+				start = The offset of the file data
+
+
+
+
