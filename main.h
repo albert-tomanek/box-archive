@@ -10,9 +10,5 @@
   void help();
   
   void print_opt_err(char optopt);
-  
-  /* Error codes */
-  #define ERR_NONE      0
-  #define ERR_CMDLINE   1
 
 #endif

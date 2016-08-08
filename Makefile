@@ -8,8 +8,8 @@ CFLAGS = -g -Wall
 default: $(TARGET)
 all: default
 
-OBJECTS = main.o box_file.o #$(patsubst %.c, %.o, $(wildcard *.c))
-HEADERS = main.h #$(wildcard *.h)
+OBJECTS = main.o box_archive.o ints.o 
+HEADERS = main.h box_archive.h ints.h errors.h dbg.h
 
 %.o: %.c $(HEADERS)
 	$(CC) $(CFLAGS) -c $< -o $@
