@@ -41,16 +41,17 @@ uint8_t ba_get_format(BoxArchive *arch)
 {
 	rewind(arch->file);				/* Go to the start of the file */
 
-	uint8_t hdr_bytes[3];	/* THREE cells long */
+	uint8_t hdr_bytes[4];	/* THREE cells long */
 
 	hdr_bytes[0] = fgetc(arch->file);
 	hdr_bytes[1] = fgetc(arch->file);
 	hdr_bytes[2] = fgetc(arch->file);
-
-	if (hdr_bytes[0] != 'A' && hdr_bytes[1] != 'T') {
+	hdr_bytes[3] = fgetc(arch->file);
+	
+	if (hdr_bytes[0] != 0xde || hdr_bytes[1] != 0xca || hdr_bytes[2] != 0xde) {	/* Pure genious */
 		return 0;
 	} else {
-		return hdr_bytes[2];
+		return hdr_bytes[3];
 	}
 }
 

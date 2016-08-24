@@ -11,15 +11,15 @@ Format v1
 
 	Offset		Length			Value		Description
 
-	0			2				"AT"		File Identifier
-	2			1				uint8_t		File version  (0x01)
-	3			1				0x00		padding
-	4			2				uint16_t	header_length
-	6			2				0x00, 0x00	padding
-	8 [			spec. at off.	ASCII text  Here goes the header XML file* .
-	] 9			2				0x00, 0xFF	End-of-header marker.
-	10							Binary data	The file data referred to by offsets stored in the deader XML file.
-	11			2				0x00, 0xFF	End of file marker.
+	0			2				0xDE, 0xCA, 0xDE File Identifier
+	3			1				uint8_t		File version  (0x01)
+	4			1				0x00		padding
+	5			2				uint16_t	header_length
+	7			2				0x00, 0x00	padding
+	9 [			spec. at off.	ASCII text  Here goes the header XML file* .
+	] 10			2				0x00, 0xFF	End-of-header marker.
+	12							Binary data	The file data referred to by offsets stored in the deader XML file.
+	13			2				0x00, 0xFF	End of file marker.
 
 	XML Header:
 		Allowed tags:
