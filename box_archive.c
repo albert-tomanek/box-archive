@@ -1,11 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #include "box_archive.h"
 #include "errors.h"
 #include "ints.h"
 
-BoxArchive* ba_open(char *loc, char debug)
+BoxArchive* ba_open(char *loc, uint8_t debug)
 {
 	BoxArchive *arch = malloc(sizeof(BoxArchive));
 
@@ -25,10 +26,42 @@ BoxArchive* ba_open(char *loc, char debug)
 		printf("done.\n");
 	}
 
+	if (ba_get_format(arch) == 0)
+	{
+		error(ERR_FFORMAT, "[ERROR] Not a box archive.");
+	}
+
 	return arch;
 }
 
-void __ba_gethdr(BoxArchive *arch, char *out)
+/* If the file is not a BOX archive,
+ * 0 will be returned
+ */
+uint8_t ba_get_format(BoxArchive *arch)
+{
+	rewind(arch->file);				/* Go to the start of the file */
+
+	uint8_t hdr_bytes[3];	/* THREE cells long */
+
+	hdr_bytes[0] = fgetc(arch->file);
+	hdr_bytes[1] = fgetc(arch->file);
+	hdr_bytes[2] = fgetc(arch->file);
+
+	if (hdr_bytes[0] != 'A' && hdr_bytes[1] != 'T') {
+		return 0;
+	} else {
+		return hdr_bytes[2];
+	}
+}
+
+void ba_gethdr(BoxArchive *arch, char *out)
 {
 
+}
+
+void ba_close(BoxArchive *arch)
+{
+	fclose(arch->file);
+
+	free(arch);
 }

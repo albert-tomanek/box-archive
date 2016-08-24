@@ -1,14 +1,14 @@
 TARGET = box
 LIBS =
 CC = gcc
-CFLAGS = -g -Wall
+CFLAGS = -g -O0 -Wall
 
 .PHONY: default all clean
 
 default: $(TARGET)
 all: default
 
-OBJECTS = main.o box_archive.o ints.o 
+OBJECTS = main.o box_archive.o ints.o
 HEADERS = main.h box_archive.h ints.h errors.h dbg.h
 
 %.o: %.c $(HEADERS)

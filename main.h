@@ -6,6 +6,13 @@
   #define BOX_ARCHIVER_VERSION "v0.01 Dev Alpha"
   #define BOX_ARCHIVER_LICENSE "GPL"
   
+  enum Job {
+	  NONE,
+	  CREATE,
+	  EXTRACT,
+	  GET_FORMAT
+  };
+  
   void version();
   void help();
   

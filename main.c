@@ -18,6 +18,7 @@ int main (int argc, char *argv[])
 
 	/* On/Off settings, stored as uint8_t */
 	uint8_t debug = 0;
+	enum Job job;
 
 	if (argc < 2)
 	{
@@ -25,7 +26,7 @@ int main (int argc, char *argv[])
 		return 0;
 	}
 
-	while ((arg = getopt(argc, argv, "df:vh")) != -1)
+	while ((arg = getopt(argc, argv, "df:vhTH")) != -1)
 	{
 	switch (arg)
 	{
@@ -52,14 +53,35 @@ int main (int argc, char *argv[])
 		/* Commands */
 		case 'H':
 		break;
+		case 'T':
+			job = GET_FORMAT;
+		break;
 
 		case '?':
 			print_opt_err(optopt);
 		break;
 	}
 	}
+	
+	/* Now do the specified job */
+	
+	switch (job)
+	{
+	case NONE:
+	break;
+	
+	case CREATE:
+	break;
+	
+	case EXTRACT:
+	break;
+	
+	case GET_FORMAT:
+		printf("Format version is %d.\n", ba_get_format(archive));
+	break;
+	}
 
-
+	ba_close(archive);
 	return 0;
 }
 
@@ -93,6 +115,7 @@ void help()
 	printf(" \n");
 	printf(" Arguments:\n");
 	printf("   -H			Print the header XML of an archive.\n");
+	printf("   -T			Print the Type/version of an archive.\n");
 	printf(" \n");
 	printf("   -d			Print debug information.\n");
 	printf("   -v			Print the archiver's version.\n");
