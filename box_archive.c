@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "box_archive.h"
 #include "errors.h"
@@ -9,7 +10,7 @@
 
 void __fgetstrn(char *dest, int length, FILE* file);
 
-BoxArchive* ba_open(char *loc, uint8_t debug)
+BoxArchive* ba_open(char *loc)
 {
 	BoxArchive *arch = malloc(sizeof(BoxArchive));
 
@@ -17,9 +18,9 @@ BoxArchive* ba_open(char *loc, uint8_t debug)
 		error(0, "[ERROR] Out of memory.\n");
 		return NULL;
 	}
-	if (debug)  {
-		printf("[DEBUG] Opening file %s...\t", loc);
-	}
+	
+	/* Constructor */
+	arch->__debug = 0;
 	
 	/* Open the actual file */
 	arch->file = fopen(loc, "rw");
@@ -28,9 +29,9 @@ BoxArchive* ba_open(char *loc, uint8_t debug)
 		error(0, "[ERROR] The file could not be opened.\n");
 		return NULL;
 	}
-	if (debug) {
-		printf("done.\n");
-	}
+	
+	/* Set arch->loc */
+	arch->loc = strdup(loc);
 
 	if (ba_get_format(arch) == 0)
 	{
@@ -39,6 +40,20 @@ BoxArchive* ba_open(char *loc, uint8_t debug)
 	}
 
 	return arch;
+}
+
+void ba_debug(BoxArchive *arch, uint8_t debug)
+{
+	if (! arch)
+	{
+		error(0, "[ERROR] Null-pointer given to ba_debug().\n");
+	}
+	if (! arch->file)
+	{
+		error(0, "[ERROR] File not open!\n");
+	}
+	
+	arch->__debug = debug ? 1 : 0 ;
 }
 
 /* If the file is not a BOX archive,
@@ -77,12 +92,12 @@ int   ba_get_hdrlen(BoxArchive *arch)
 {
 	if (! arch)
 	{
-		error(0, "[ERROR] Null-pointer given to ba_get_header().\n");
+		error(0, "[ERROR] Null-pointer given to ba_get_hdrlen().\n");
 		return 0;
 	}
 	if (! arch->file)
 	{
-		error(0, "[ERROR] FilFilee not open!\n");
+		error(0, "[ERROR] File not open!\n");
 		return 0;
 	}
 	
@@ -96,7 +111,7 @@ int   ba_get_hdrlen(BoxArchive *arch)
 	return cvt8to16(byte1, byte2);	/* function from ints.h */
 }
 
-char* ba_get_header(BoxArchive *arch, uint8_t debug)
+char* ba_get_header(BoxArchive *arch)
 {
 	if (! arch)
 	{
@@ -115,7 +130,7 @@ char* ba_get_header(BoxArchive *arch, uint8_t debug)
 	uint16_t hdr_length = ba_get_hdrlen(arch);
 	char* header = calloc(hdr_length+1, sizeof(char));	/* +1 for the null-byte */
 	
-	if (debug)
+	if (arch->__debug)
 		printf("[DEBUG] XML header length = %d bytes\n", hdr_length);
 	
 	__fgetstrn(header, hdr_length, arch->file);
@@ -135,7 +150,10 @@ void ba_close(BoxArchive *arch)
 			fprintf(stderr, "[WARNING] Cannot close archive; archive not open!\n");
 		else
 			fclose(arch->file);
-
+		
+		if (arch->loc)
+			free(arch->loc);
+		
 		free(arch);
 	}
 }

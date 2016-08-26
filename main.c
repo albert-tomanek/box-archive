@@ -14,10 +14,10 @@ int main (int argc, char *argv[])
 
 	/* Strings that *might* be used */
 	char arg;
-	char *boxfile;
-
-	/* On/Off settings, stored as uint8_t */
+	
+	/* Switches */
 	uint8_t debug = 0;
+
 	enum Job job;
 
 	if (argc < 2)
@@ -45,10 +45,12 @@ int main (int argc, char *argv[])
 		break;
 
 		/* Compulsory args */
-		case 'f':
-			boxfile = optarg;
-			archive = ba_open(boxfile, debug);
-		break;
+		case 'f':					/* File */
+		{
+			char *boxfile = optarg;
+			archive = ba_open(boxfile);
+			break;
+		}
 
 		/* Commands */
 		case 'H':
@@ -63,6 +65,9 @@ int main (int argc, char *argv[])
 		break;
 	}
 	}
+	
+	/* Switches */
+	ba_debug(archive, debug);
 	
 	/* Now do the specified job */
 	
@@ -83,7 +88,7 @@ int main (int argc, char *argv[])
 		
 		case PRINT_HEADER:
 		{
-			char *header = ba_get_header(archive, debug);
+			char *header = ba_get_header(archive);		/* Returned string is on _heap_ */
 			printf("%s\n", header);
 			free(header);
 		break;

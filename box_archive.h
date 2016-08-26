@@ -21,16 +21,18 @@
   typedef struct BoxArchive BoxArchive;
 
   /* Functions */
-  BoxArchive* 	ba_open(char *loc, uint8_t debug);           /* The uint8_t is used to store a boolean value */
+  BoxArchive* 	ba_open(char *loc);           /* The uint8_t is used to store a boolean value */
   void			ba_close(BoxArchive *arch);
+  
+  void 		ba_debug(BoxArchive *arch, uint8_t debug);
   
   int 		ba_get_hdrlen(BoxArchive *arch);
   #define 	ba_get_header_length(...) ba_get_hdrlen(##__VA_ARGS__)
   
-  char*  	ba_get_header(BoxArchive *arch, uint8_t debug);
+  char*  	ba_get_header(BoxArchive *arch);
   #define 	ba_get_hdr(...) ba_get_header(##__VA_ARGS__)
   
-  uint8_t ba_get_format(BoxArchive *arch);     /* Returns the format version of the given archive, and 0 if the format is invalid.*/
+  uint8_t 	ba_get_format(BoxArchive *arch);     /* Returns the format version of the given archive, and 0 if the format is invalid.*/
   #define 	ba_get_fmt(...) ba_get_format(##__VA_ARGS__)
   
 #endif
