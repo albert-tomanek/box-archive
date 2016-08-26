@@ -52,6 +52,7 @@ int main (int argc, char *argv[])
 
 		/* Commands */
 		case 'H':
+			job = PRINT_HEADER;
 		break;
 		case 'T':
 			job = GET_FORMAT;
@@ -67,18 +68,26 @@ int main (int argc, char *argv[])
 	
 	switch (job)
 	{
-	case NONE:
-	break;
-	
-	case CREATE:
-	break;
-	
-	case EXTRACT:
-	break;
-	
-	case GET_FORMAT:
-		printf("Format version is %d.\n", ba_get_format(archive));
-	break;
+		case NONE:
+		break;
+		
+		case CREATE:
+		break;
+		
+		case EXTRACT:
+		break;
+		
+		case GET_FORMAT:
+			printf("Format version is %d.\n", ba_get_format(archive));
+		break;
+		
+		case PRINT_HEADER:
+		{
+			char *header = ba_get_header(archive, debug);
+			printf("%s\n", header);
+			free(header);
+		break;
+		}
 	}
 
 	ba_close(archive);

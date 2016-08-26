@@ -4,7 +4,8 @@
   #include <stdlib.h>
   #include <stdio.h>
   
-  #define error(C, S, ...) fprintf(stderr, S, ##__VA_ARGS__); exit(C);
+  #define error(C, S, ...) fprintf(stderr, S, ##__VA_ARGS__); if(C) {exit(C);}
+  
   
   /* Error codes */
   #define ERR_NONE		0
@@ -13,6 +14,6 @@
   #define ERR_MEM		3	/* Memory error */
   #define ERR_FOPEN		4
   
-  #define ERR_OTHER		255
+  #define ERR_NULLPTR	255
   
 #endif

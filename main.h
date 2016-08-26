@@ -10,7 +10,8 @@
 	  NONE,
 	  CREATE,
 	  EXTRACT,
-	  GET_FORMAT
+	  GET_FORMAT,
+	  PRINT_HEADER
   };
   
   void version();
