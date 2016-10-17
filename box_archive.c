@@ -9,6 +9,7 @@
 #include "ints.h"
 
 void __fgetstrn(char *dest, int length, FILE* file);
+void __ba_cleanup(BoxArchive *arch);
 
 BoxArchive* ba_open(char *loc)
 {
@@ -32,11 +33,17 @@ BoxArchive* ba_open(char *loc)
 	
 	/* Set arch->loc */
 	arch->loc = strdup(loc);
+	
+	uint8_t format = ba_get_format(arch);
 
-	if (ba_get_format(arch) == 0)
+	if (format == 0)
 	{
-		error(0, "[ERROR] Not a box archive.");
+		error(ERR_FFORMAT, "[ERROR] Not a box archive.\n");
 		return NULL;
+	}
+	else if (format > BA_MAX_VER)
+	{
+		error(ERR_FFORMAT, "[ERROR] Format version %d not supported.", format);
 	}
 
 	return arch;
@@ -156,6 +163,28 @@ void ba_close(BoxArchive *arch)
 		
 		free(arch);
 	}
+}
+
+void __ba_cleanup(BoxArchive *arch)
+{
+	if (! arch)
+	{
+		error(0, "[ERROR] Null-pointer given to __ba_cleanup().\n");
+		return;
+	}
+	
+	/* Free all elments on heap */
+	if (arch->loc)
+		free(arch->loc);
+	if (arch->header)
+		free(arch->header);
+	
+	if (arch->file)
+		fclose(arch->file);
+	else
+		fprintf(stderr, "[WARNING] Could not close archive; archive not open.\n");
+	
+	free(arch);
 }
 
 /* Similair to fgets(), but doesn't terminate on \n or \0 */

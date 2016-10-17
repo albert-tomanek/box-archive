@@ -4,9 +4,7 @@
   #include <stdio.h>
   #include <stdint.h>
 
-  /* Debug options */
-  #define NO_DEBUG  0
-  #define DEBUG     1
+  #define BA_MAX_VER 1		/* The highest box archive version that the program supports */
 
   /* Structs */
   struct BoxArchive {
@@ -33,6 +31,6 @@
   #define 	ba_get_hdr(...) ba_get_header(##__VA_ARGS__)
   
   uint8_t 	ba_get_format(BoxArchive *arch);     /* Returns the format version of the given archive, and 0 if the format is invalid.*/
-  #define 	ba_get_fmt(...) ba_get_format(##__VA_ARGS__)
+  #define 	ba_getfmt(...) ba_get_format(##__VA_ARGS__)
   
 #endif

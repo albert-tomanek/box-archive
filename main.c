@@ -135,5 +135,9 @@ void help()
 	printf("   -v			Print the archiver's version.\n");
 	printf("   -h			Print this help text.\n");
 	printf(" \n");
+	printf(" EzXML XML Parser:\n");
+	printf("   Copyright (c) 2004-2006 Aaron Voisine <aaron@voisine.org>\n");
+	printf(" The BOX archiver:\n");
+	printf("   Copyright (c) 2016 Albert Tomanek <electron826@gmail.com>\n\n");
 }
 

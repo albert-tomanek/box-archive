@@ -1,6 +1,8 @@
 #ifndef __BOX_ARCHIVER_MAIN_H__
   #define __BOX_ARCHIVER_MAIN_H__
-
+  
+  #include "box_archive.h"
+  
   /*build*/
 
   #define BOX_ARCHIVER_VERSION "v0.01 Dev Alpha"
