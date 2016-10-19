@@ -87,7 +87,20 @@ int main (int argc, char *argv[])
 		
 		case LIST:
 		{
-			ba_list(archive);
+			ba_FileList *file = ba_getfiles(archive);	// more like file*s*
+			
+			if (! file)
+				error(0, "[ERROR] Error getting files.");
+			
+			while (file)
+			{
+				printf("%s\n", file->path);
+				
+				file = file->next;
+			}
+			
+			bafl_free(&file);
+			
 			break;
 		}
 		

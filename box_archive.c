@@ -4,16 +4,17 @@
 #include <string.h>
 
 #include "box_archive.h"
+#include "filelist.h"
 #include "errors.h"
 #include "positions.h"
 #include "ints.h"
 #include "ezxml/ezxml.h"
 
+typedef struct ezxml ezxml;		/* Not implemented in EzXML for some reason... */
+
 /* Private stuff */
 
-typedef struct ezxml ezxml;		/* Not implemented for some reason... */
-
-void  __ba_list_process(ezxml *parent, char *parent_dir);
+void  __ba_dir_process(ezxml *parent, ba_FileList **first_file, char *current_dir);
 void  __ba_cleanup(BoxArchive *arch);
 char* __dupcat(char *str1, char *str2, char *str3);
 void  __fgetstrn(char *dest, int length, FILE* file);
@@ -60,37 +61,58 @@ BoxArchive* ba_open(char *loc)
 
 void ba_list(BoxArchive *arch)
 {
-	char *header = ba_gethdr( arch );
+
+}
+
+ba_FileList* ba_get_files(BoxArchive *arch)
+{
+	/* The XML header extracted from the archive */
+	char *header = ba_gethdr(arch);
 	
+	/* The (yet to be initialised) list we'll be returning */
+	ba_FileList *first_file = NULL;
+	
+	/* The root directory of the archive (ie. root node of the XML) */
 	ezxml *root_dir = ezxml_parse_str(header, strlen(header));
 	
 	if (!root_dir)
 	{
 		error(0, "[ERROR] XML parser error: %s\n", ezxml_error(root_dir));
-		return;
+		return NULL;
 	}
 	
-	__ba_list_process(root_dir, "");
+	__ba_dir_process(root_dir, &first_file, "");
 	
 	ezxml_free(root_dir);
 	free(header);
+	
+	return first_file;
 }
 
-void __ba_list_process(ezxml *parent, char *current_dir)
+void __ba_dir_process(ezxml *parent, ba_FileList **first_file, char *current_dir)
 {
+	/* Recursive function used by ba_get_files(),
+	 * and add each file to the given ba_FileList.
+	 */
+	
 	ezxml *file = ezxml_child(parent, "file");	/* A linked list of all the file nodes;			*/
 	ezxml *dir  = ezxml_child(parent, "dir");	/* A linked list of all the directory nodes.	*/
 	
 	const char *file_name;			/* 'const' else it gives a warning for some reason...	*/
 	const char *dir_name;
+	char       *joint_file_name;
 	char       *child_dir_name;
 	
 	while (file)
 	{
 		file_name = ezxml_attr(file, "name");
 		
-		printf("%s%s\n", current_dir, file_name);
+		joint_file_name = __dupcat(current_dir, (char*) file_name, "");
 		
+		/* Add the file path to the list */
+		bafl_add(first_file, joint_file_name);
+		
+		free(joint_file_name);
 		file = file->next;
 	}
 	
@@ -101,9 +123,7 @@ void __ba_list_process(ezxml *parent, char *current_dir)
 		/* make a string with the directory name to pass to the recursing function */
 		child_dir_name = __dupcat(current_dir, (char*) dir_name, BA_SEP);
 		
-		printf("%s\n", child_dir_name);
-		
-		__ba_list_process(dir, child_dir_name);
+		__ba_dir_process(dir, first_file, child_dir_name);
 		
 		free(child_dir_name);
 		dir = dir->next;
@@ -116,9 +136,12 @@ void ba_debug(BoxArchive *arch, uint8_t debug)
 	{
 		error(0, "[ERROR] Null-pointer given to ba_debug().\n");
 	}
-	if (! arch->file)
+	else
 	{
-		error(0, "[ERROR] File not open!\n");
+		if (! arch->file)
+		{
+			error(0, "[ERROR] File not open!\n");
+		}
 	}
 	
 	arch->__debug = debug ? 1 : 0 ;

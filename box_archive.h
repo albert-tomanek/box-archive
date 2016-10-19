@@ -3,6 +3,8 @@
 
   #include <stdio.h>
   #include <stdint.h>
+  
+  #include "filelist.h"
 
   #define BA_MAX_VER 1		/* The highest box archive version that the program supports */
   #define BA_SEP "/"		/* The file path separator */
@@ -15,23 +17,27 @@
 	  /* private stuff */
 	  uint8_t __debug;
   };
+  
+  typedef struct BoxArchive  BoxArchive;
 
-  typedef struct BoxArchive BoxArchive;
-
+  
   /* Functions */
   BoxArchive* 	ba_open(char *loc);           /* The uint8_t is used to store a boolean value */
   void			ba_close(BoxArchive *arch);
   
+  ba_FileList*  ba_get_files(BoxArchive *arch);
+  #define   	ba_getfiles(A)	ba_get_files(A)
+  
   void 		ba_debug(BoxArchive *arch, uint8_t debug);	/* Toggle debug output */
   
   int 		ba_get_hdrlen(BoxArchive *arch);			/* get the length of the header in bytes */
-  #define 	ba_get_header_length(...) ba_get_hdrlen(##__VA_ARGS__)
+  #define 	ba_get_header_length(A) ba_get_hdrlen(A)
   
   char*  	ba_get_header(BoxArchive *arch);			/* Returns pointer to heap; don't forget to free() it */
   #define 	ba_gethdr(A)	ba_get_header(A)
   
   uint8_t 	ba_get_format(BoxArchive *arch);     /* Returns the format version of the given archive, and 0 if the format is invalid.*/
-  #define 	ba_getfmt(...)	ba_get_format(##__VA_ARGS__)
+  #define 	ba_getfmt(A)	ba_get_format(A)
   
   void ba_list(BoxArchive *arch);
   
