@@ -12,6 +12,7 @@
 	  NONE,
 	  CREATE,
 	  EXTRACT,
+	  LIST,
 	  GET_FORMAT,
 	  PRINT_HEADER
   };

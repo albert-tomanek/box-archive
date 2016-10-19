@@ -7,9 +7,18 @@
 #include "errors.h"
 #include "positions.h"
 #include "ints.h"
+#include "ezxml/ezxml.h"
 
-void __fgetstrn(char *dest, int length, FILE* file);
-void __ba_cleanup(BoxArchive *arch);
+/* Private stuff */
+
+typedef struct ezxml ezxml;		/* Not implemented for some reason... */
+
+void  __ba_list_process(ezxml *parent, char *parent_dir);
+void  __ba_cleanup(BoxArchive *arch);
+char* __dupcat(char *str1, char *str2, char *str3);
+void  __fgetstrn(char *dest, int length, FILE* file);
+
+/* Library functions */
 
 BoxArchive* ba_open(char *loc)
 {
@@ -47,6 +56,58 @@ BoxArchive* ba_open(char *loc)
 	}
 
 	return arch;
+}
+
+void ba_list(BoxArchive *arch)
+{
+	char *header = ba_gethdr( arch );
+	
+	ezxml *root_dir = ezxml_parse_str(header, strlen(header));
+	
+	if (!root_dir)
+	{
+		error(0, "[ERROR] XML parser error: %s\n", ezxml_error(root_dir));
+		return;
+	}
+	
+	__ba_list_process(root_dir, "");
+	
+	ezxml_free(root_dir);
+	free(header);
+}
+
+void __ba_list_process(ezxml *parent, char *current_dir)
+{
+	ezxml *file = ezxml_child(parent, "file");	/* A linked list of all the file nodes;			*/
+	ezxml *dir  = ezxml_child(parent, "dir");	/* A linked list of all the directory nodes.	*/
+	
+	const char *file_name;			/* 'const' else it gives a warning for some reason...	*/
+	const char *dir_name;
+	char       *child_dir_name;
+	
+	while (file)
+	{
+		file_name = ezxml_attr(file, "name");
+		
+		printf("%s%s\n", current_dir, file_name);
+		
+		file = file->next;
+	}
+	
+	while (dir)
+	{
+		dir_name   = ezxml_attr(dir, "name");
+		
+		/* make a string with the directory name to pass to the recursing function */
+		child_dir_name = __dupcat(current_dir, (char*) dir_name, BA_SEP);
+		
+		printf("%s\n", child_dir_name);
+		
+		__ba_list_process(dir, child_dir_name);
+		
+		free(child_dir_name);
+		dir = dir->next;
+	}
 }
 
 void ba_debug(BoxArchive *arch, uint8_t debug)
@@ -134,12 +195,20 @@ char* ba_get_header(BoxArchive *arch)
 	/* Go to the header */
 	fseek(arch->file, P_HEADER, SEEK_SET);
 	
+	/* Get the header length and allocate enough memory to copy it in to */
 	uint16_t hdr_length = ba_get_hdrlen(arch);
-	char* header = calloc(hdr_length+1, sizeof(char));	/* +1 for the null-byte */
 	
 	if (arch->__debug)
 		printf("[DEBUG] XML header length = %d bytes\n", hdr_length);
+		
+	char* header = calloc(hdr_length+1, sizeof(char));	/* +1 for the null-byte */
 	
+	if (! header)
+	{
+		error(ERR_MEM, "[ERROR] Out of memory (malloc() returned NULL).\n");
+	}
+	
+	/* Copy the header from the file into memory */
 	__fgetstrn(header, hdr_length, arch->file);
 	
 	return header;
@@ -176,8 +245,6 @@ void __ba_cleanup(BoxArchive *arch)
 	/* Free all elments on heap */
 	if (arch->loc)
 		free(arch->loc);
-	if (arch->header)
-		free(arch->header);
 	
 	if (arch->file)
 		fclose(arch->file);
@@ -194,4 +261,15 @@ void __fgetstrn(char *dest, int length, FILE* file)
 	{
 		dest[i] = fgetc(file);
 	}
+}
+
+char* __dupcat(char *str1, char *str2, char *str3)
+{
+	/* Like strcat, but does strdup first */
+	char *out;
+	
+	out = calloc( strlen(str1)+strlen(str2)+strlen(str3)+1, sizeof(char));
+	sprintf(out, "%s%s%s", str1, str2, str3);
+	
+	return out;
 }

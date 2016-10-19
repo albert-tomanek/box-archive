@@ -26,7 +26,7 @@ int main (int argc, char *argv[])
 		return 0;
 	}
 
-	while ((arg = getopt(argc, argv, "df:vhTH")) != -1)
+	while ((arg = getopt(argc, argv, "dlf:vhTH")) != -1)
 	{
 	switch (arg)
 	{
@@ -59,6 +59,9 @@ int main (int argc, char *argv[])
 		case 'T':
 			job = GET_FORMAT;
 		break;
+		case 'l':
+			job = LIST;
+		break;
 
 		case '?':
 			print_opt_err(optopt);
@@ -82,6 +85,12 @@ int main (int argc, char *argv[])
 		case EXTRACT:
 		break;
 		
+		case LIST:
+		{
+			ba_list(archive);
+			break;
+		}
+		
 		case GET_FORMAT:
 			printf("Format version is %d.\n", ba_get_format(archive));
 		break;
@@ -91,7 +100,7 @@ int main (int argc, char *argv[])
 			char *header = ba_get_header(archive);		/* Returned string is on _heap_ */
 			printf("%s\n", header);
 			free(header);
-		break;
+			break;
 		}
 	}
 

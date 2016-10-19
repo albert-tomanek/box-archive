@@ -4,7 +4,7 @@
   #include <stdlib.h>
   #include <stdio.h>
   
-  #define error(C, S, ...) fprintf(stderr, S, ##__VA_ARGS__); if(C) {exit(C);}
+  #define error(C, S, ...) fprintf(stderr, "%s, %d: " S, __FILE__, __LINE__, ##__VA_ARGS__); if(C) {exit(C);}
   
   
   /* Error codes */

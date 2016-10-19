@@ -1,3 +1,6 @@
 <header>
 	<file name="test.txt" size="32" start="0" />
+	<dir  name="directory">
+		<file name="other.txt" size="64" start="32" />
+	</dir>
 </header>

@@ -2,14 +2,15 @@ TARGET = box
 LIBS =
 CC = gcc
 CFLAGS = -g -O0 -Wall
+EZXML = ezxml
 
 .PHONY: default all clean
 
 default: $(TARGET)
 all: default
 
-OBJECTS = main.o box_archive.o ints.o
-HEADERS = main.h box_archive.h ints.h positions.h errors.h dbg.h
+OBJECTS = main.o ezxml/ezxml.o box_archive.o ints.o
+HEADERS = main.h ezxml/ezxml.h box_archive.h ints.h positions.h errors.h dbg.h
 
 %.o: %.c $(HEADERS)
 	$(CC) $(CFLAGS) -c $< -o $@
