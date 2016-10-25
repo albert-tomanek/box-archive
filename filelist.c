@@ -1,7 +1,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "errors.h"
+#include "dbg.h"
 #include "file.h"
 #include "filelist.h"
 
@@ -57,13 +57,23 @@ void bafl_free(ba_FileList **first_file)	/* Double-pointer because we will be ch
 	return;
 }
 
+int bafl_count(ba_FileList *first)
+{
+	int count = 0;
+	ba_FileList *current = first;
+	
+	while (current)
+	{
+		count++;
+		current = current->next;
+	}
+	
+	return count;
+}
+
 ba_FileList* __bafl_getlast(ba_FileList *first)
 {
-	
-	if (first == NULL)
-	{
-		error(ERR_NULLPTR, "[ERROR] Null pointer passed to __bafl_getlast() for ba_FileList *first.\n");
-	}
+	check(first, "Null pointer passed to __bafl_getlast()");
 	
 	ba_FileList *current = first;
 	
@@ -73,4 +83,7 @@ ba_FileList* __bafl_getlast(ba_FileList *first)
 	}
 	
 	return current;
+	
+error:
+	return first;
 }
