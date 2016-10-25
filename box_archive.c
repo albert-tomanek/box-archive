@@ -16,8 +16,8 @@ typedef struct ezxml ezxml;		/* Not implemented in EzXML for some reason... */
 
 /* Private stuff */
 
-void     __ba_get__process_dir(ezxml *parent, ba_FileList **first_file, char *current_dir);
-ba_File* __ba_get__get_file_metadata(ezxml *file, char *current_dir);
+void     __ba_process_xml_dir(ezxml *parent, ba_FileList **first_file, char *current_dir);
+ba_File* __ba_get_file_metadata(ezxml *file, char *current_dir);
 
 ba_FileList* __ba_load_metadata(char *header);
 
@@ -90,7 +90,7 @@ ba_FileList* __ba_load_metadata(char *header)
 	
 	check(root_dir, "XML parser error: %s", ezxml_error(root_dir));
 	
-	__ba_get__process_dir(root_dir, &first_file, "");		/* Run the recursive (self-calling) function that goes through all the directories and adds everything to the list */
+	__ba_process_xml_dir(root_dir, &first_file, "");		/* Run the recursive (self-calling) function that goes through all the directories and adds everything to the list */
 	
 	ezxml_free(root_dir);
 	free(header);
@@ -101,7 +101,7 @@ error:
 	return NULL;
 }
 
-void __ba_get__process_dir(ezxml *parent, ba_FileList **first_file, char *current_dir)
+void __ba_process_xml_dir(ezxml *parent, ba_FileList **first_file, char *current_dir)
 {
 	/* Recursive function used by ba_get_files(),
 	 * to add each file to the given ba_FileList.
@@ -116,7 +116,7 @@ void __ba_get__process_dir(ezxml *parent, ba_FileList **first_file, char *curren
 	
 	while (file_node)
 	{
-		file = __ba_get__get_file_metadata(file_node, current_dir);
+		file = __ba_get_file_metadata(file_node, current_dir);
 		
 		/* Add the file path to the list */
 		bafl_add(first_file, file);
@@ -131,14 +131,14 @@ void __ba_get__process_dir(ezxml *parent, ba_FileList **first_file, char *curren
 		/* make a string with the directory name to pass to the recursing function */
 		child_dir_name = __dupcat(current_dir, (char*) dir_name, BA_SEP);
 		
-		__ba_get__process_dir(dir_node, first_file, child_dir_name);
+		__ba_process_xml_dir(dir_node, first_file, child_dir_name);
 		
 		free(child_dir_name);
 		dir_node = dir_node->next;
 	}
 }
 
-ba_File* __ba_get__get_file_metadata(ezxml *file_node, char *current_dir)
+ba_File* __ba_get_file_metadata(ezxml *file_node, char *current_dir)
 {
 	char *joint_file_name;
 	joint_file_name = __dupcat(current_dir, (const char*) ezxml_attr(file_node, "name"), "");
