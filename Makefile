@@ -1,7 +1,7 @@
 TARGET = box
 LIBS =
 CC = gcc
-CFLAGS = -g -O0 -Wall
+CFLAGS = -g -O0 -Wall -Wno-discarded-qualifiers
 EZXML = ezxml
 
 .PHONY: default all clean
@@ -9,8 +9,8 @@ EZXML = ezxml
 default: $(TARGET)
 all: default
 
-OBJECTS = main.o ezxml/ezxml.o box_archive.o filelist.o ints.o
-HEADERS = main.h ezxml/ezxml.h box_archive.h filelist.h ints.h positions.h errors.h dbg.h
+OBJECTS = main.o ezxml/ezxml.o box_archive.o filelist.o file.o ints.o
+HEADERS = main.h ezxml/ezxml.h box_archive.h filelist.h file.c ints.h positions.h errors.h dbg.h
 
 %.o: %.c $(HEADERS)
 	$(CC) $(CFLAGS) -c $< -o $@

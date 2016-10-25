@@ -12,7 +12,6 @@ int main (int argc, char *argv[])
 	/* The archive struct */
 	BoxArchive *archive = NULL;
 
-	/* Strings that *might* be used */
 	char arg;
 	
 	/* Switches */
@@ -94,7 +93,7 @@ int main (int argc, char *argv[])
 			
 			while (file)
 			{
-				printf("%s\n", file->path);
+				printf("%s\n", file->file->path);
 				
 				file = file->next;
 			}

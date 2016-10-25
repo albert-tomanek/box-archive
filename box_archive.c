@@ -5,6 +5,7 @@
 
 #include "box_archive.h"
 #include "filelist.h"
+#include "file.h"
 #include "errors.h"
 #include "positions.h"
 #include "ints.h"
@@ -14,7 +15,9 @@ typedef struct ezxml ezxml;		/* Not implemented in EzXML for some reason... */
 
 /* Private stuff */
 
-void  __ba_dir_process(ezxml *parent, ba_FileList **first_file, char *current_dir);
+void     __ba_get__process_dir(ezxml *parent, ba_FileList **first_file, char *current_dir);
+ba_File* __ba_get__get_file_metadata(ezxml *file, char *current_dir);
+
 void  __ba_cleanup(BoxArchive *arch);
 char* __dupcat(char *str1, char *str2, char *str3);
 void  __fgetstrn(char *dest, int length, FILE* file);
@@ -59,11 +62,6 @@ BoxArchive* ba_open(char *loc)
 	return arch;
 }
 
-void ba_list(BoxArchive *arch)
-{
-
-}
-
 ba_FileList* ba_get_files(BoxArchive *arch)
 {
 	/* The XML header extracted from the archive */
@@ -81,7 +79,7 @@ ba_FileList* ba_get_files(BoxArchive *arch)
 		return NULL;
 	}
 	
-	__ba_dir_process(root_dir, &first_file, "");
+	__ba_get__process_dir(root_dir, &first_file, "");		/* Run the recursive (self-calling) function that goes through all the directories and adds everything to the list */
 	
 	ezxml_free(root_dir);
 	free(header);
@@ -89,45 +87,62 @@ ba_FileList* ba_get_files(BoxArchive *arch)
 	return first_file;
 }
 
-void __ba_dir_process(ezxml *parent, ba_FileList **first_file, char *current_dir)
+void __ba_get__process_dir(ezxml *parent, ba_FileList **first_file, char *current_dir)
 {
 	/* Recursive function used by ba_get_files(),
-	 * and add each file to the given ba_FileList.
+	 * to add each file to the given ba_FileList.
 	 */
 	
-	ezxml *file = ezxml_child(parent, "file");	/* A linked list of all the file nodes;			*/
-	ezxml *dir  = ezxml_child(parent, "dir");	/* A linked list of all the directory nodes.	*/
+	ezxml *file_node = ezxml_child(parent, "file");	/* A linked list of all the file nodes;			*/
+	ezxml *dir_node  = ezxml_child(parent, "dir");	/* A linked list of all the directory nodes.	*/
 	
-	const char *file_name;			/* 'const' else it gives a warning for some reason...	*/
-	const char *dir_name;
-	char       *joint_file_name;
+	const char *dir_name;			/* 'const' else it gives a warning for some reason...	*/
 	char       *child_dir_name;
+	ba_File    *file;
 	
-	while (file)
+	while (file_node)
 	{
-		file_name = ezxml_attr(file, "name");
-		
-		joint_file_name = __dupcat(current_dir, (char*) file_name, "");
+		file = __ba_get__get_file_metadata(file_node, current_dir);
 		
 		/* Add the file path to the list */
-		bafl_add(first_file, joint_file_name);
+		bafl_add(first_file, file);
 		
-		free(joint_file_name);
-		file = file->next;
+		file_node = file_node->next;
 	}
 	
-	while (dir)
+	while (dir_node)
 	{
-		dir_name   = ezxml_attr(dir, "name");
+		dir_name   = ezxml_attr(dir_node, "name");
 		
 		/* make a string with the directory name to pass to the recursing function */
 		child_dir_name = __dupcat(current_dir, (char*) dir_name, BA_SEP);
 		
-		__ba_dir_process(dir, first_file, child_dir_name);
+		__ba_get__process_dir(dir_node, first_file, child_dir_name);
 		
 		free(child_dir_name);
-		dir = dir->next;
+		dir_node = dir_node->next;
 	}
+}
+
+ba_File* __ba_get__get_file_metadata(ezxml *file_node, char *current_dir)
+{
+	char *joint_file_name;
+	joint_file_name = __dupcat(current_dir, (const char*) ezxml_attr(file_node, "name"), "");
+	
+	ba_File *file = malloc(sizeof(ba_File));
+	
+	if (! file)	/* Check for NULLs */
+	{
+		return NULL;
+	}
+	
+	file->path = joint_file_name;		/* Note: the string will be freed when the struct is freed.	*/
+	file->type = ba_FileType_FILE;
+	
+	file->__size  = atoi( ezxml_attr(file_node, "size")  );
+	file->__start = atoi( ezxml_attr(file_node, "start") );
+	
+	return file;
 }
 
 void ba_debug(BoxArchive *arch, uint8_t debug)

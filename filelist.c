@@ -1,8 +1,9 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "filelist.h"
 #include "errors.h"
+#include "file.h"
+#include "filelist.h"
 
 /* Private stuff */
 
@@ -10,12 +11,12 @@ ba_FileList* __bafl_getlast(ba_FileList *first);
 
 /*  */
 
-void bafl_add(ba_FileList **first_file, char *file_path)
+void bafl_add(ba_FileList **first_file, ba_File *file)
 {
 	ba_FileList *new_file = malloc(sizeof(ba_FileList));
 	
 	new_file->next = NULL;
-	new_file->path = strdup(file_path);
+	new_file->file = file;
 	
 	if (*first_file == NULL)
 	{
@@ -45,8 +46,8 @@ void bafl_free(ba_FileList **first_file)	/* Double-pointer because we will be ch
 	{
 		next = current_file->next;
 		
-		free(current_file->path);	/* It's on heap */
-		free(current_file);
+		ba_file_free(current_file->file);	/* Free the ba_File struct that it points to. */
+		free		(current_file);
 		
 		current_file = next;
 	}
