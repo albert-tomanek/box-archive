@@ -3,8 +3,9 @@
 #include <stdint.h>
 #include <unistd.h>
 
+#include "dbg.h"
+
 #include "main.h"
-#include "errors.h"
 #include "box_archive.h"
 
 int main (int argc, char *argv[])
@@ -13,9 +14,6 @@ int main (int argc, char *argv[])
 	BoxArchive *archive = NULL;
 
 	char arg;
-	
-	/* Switches */
-	uint8_t debug = 0;
 
 	enum Job job;
 
@@ -36,11 +34,6 @@ int main (int argc, char *argv[])
 		case 'v':
 			version();
 			return 0;
-		break;
-
-		/* Switches */
-		case 'd':					/* debug */
-			debug = 1;
 		break;
 
 		/* Compulsory args */
@@ -68,9 +61,6 @@ int main (int argc, char *argv[])
 	}
 	}
 	
-	/* Switches */
-	ba_debug(archive, debug);
-	
 	/* Now do the specified job */
 	
 	switch (job)
@@ -88,8 +78,7 @@ int main (int argc, char *argv[])
 		{
 			ba_FileList *file = ba_getfiles(archive);	// more like file*s*
 			
-			if (! file)
-				error(0, "[ERROR] Error getting files.");
+			check(file, "Error getting files.")
 			
 			while (file)
 			{
@@ -118,6 +107,9 @@ int main (int argc, char *argv[])
 
 	ba_close(archive);
 	return 0;
+
+error:
+	return 1;
 }
 
 
@@ -127,12 +119,14 @@ void print_opt_err(char optopt)
 	switch (optopt)
 	{
 	case 'f':
-		error(ERR_CMDLINE, "[ERROR] Invalid '-f' argument. Use:\n        -f <file> \n");
+		fprintf(stderr, "[ERROR] Invalid '-f' argument. Use: -f <file> \n");
 	break;
 
 	default:
-		printf("[WARNING] '-%c' is an invalid option! Ignoring.\n", optopt);
+		fprintf(stderr, "[WARNING] '-%c' is an invalid option! Ignoring.\n", optopt);
 	}
+	
+	exit(1);
 }
 
 void version()

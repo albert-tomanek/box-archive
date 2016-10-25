@@ -8,6 +8,8 @@
 
   #define BA_MAX_VER 1		/* The highest box archive version that the program supports */
   #define BA_SEP "/"		/* The file path separator */
+  
+  #define NODEBUG			/* Stops debug output */
 
   /* Structs */
   struct BoxArchive {
@@ -18,8 +20,6 @@
 	  
 	  ba_FileList *file_list;		/* Files and their metadata */
 	  
-	  /* private stuff */
-	  uint8_t __debug;
   };
   
   typedef struct BoxArchive  BoxArchive;

@@ -6,10 +6,10 @@
 #include "box_archive.h"
 #include "filelist.h"
 #include "file.h"
-#include "errors.h"
 #include "positions.h"
 #include "ints.h"
 #include "types.h"
+#include "dbg.h"
 #include "ezxml/ezxml.h"
 
 typedef struct ezxml ezxml;		/* Not implemented in EzXML for some reason... */
@@ -34,21 +34,12 @@ BoxArchive* ba_open(char *loc)
 {
 	BoxArchive *arch = malloc(sizeof(BoxArchive));
 
-	if (!arch) {
-		error(0, "[ERROR] Out of memory.\n");
-		return NULL;
-	}
-	
-	/* Constructor */
-	arch->__debug = 0;
+	check(arch, "Out of memory!");
 	
 	/* Open the actual file */
 	arch->file = fopen(loc, "rw");
 
-	if (! arch->file) {
-		error(0, "[ERROR] The file could not be opened.\n");
-		return NULL;
-	}
+	check(arch->file, "The file could not be opened.");
 	
 	/* Set arch->loc */
 	arch->loc = strdup(loc);
@@ -56,15 +47,8 @@ BoxArchive* ba_open(char *loc)
 	/* Check the format version */
 	uint8_t format = ba_get_format(arch);
 
-	if (format == 0)
-	{
-		error(ERR_FFORMAT, "[ERROR] Not a box archive.\n");
-		return NULL;
-	}
-	else if (format > BA_MAX_VER)
-	{
-		error(ERR_FFORMAT, "[ERROR] Format version %d not supported.", format);
-	}
+	check(format != 0, "Not a box archive.");
+	check(format <= BA_MAX_VER, "Format version %d not supported.", format);
 	
 	/* Copy the XML header into memory */
 	arch->header = __ba_load_header(arch->file);
@@ -73,11 +57,27 @@ BoxArchive* ba_open(char *loc)
 	arch->file_list = __ba_load_metadata(arch->header);
 
 	return arch;
+
+error:
+
+	if (arch)
+	{
+		if (arch->file)
+			fclose(arch->file);
+		free(arch);
+	}
+	
+	return NULL;
 }
 
 ba_FileList* ba_get_files(BoxArchive *arch)
 {
+	check(arch, "Null pointer given to ba_get_files().")
+	
 	return arch->file_list;
+
+error:
+	return NULL;
 }
 
 ba_FileList* __ba_load_metadata(char *header)
@@ -88,11 +88,7 @@ ba_FileList* __ba_load_metadata(char *header)
 	/* The root directory of the archive (ie. root node of the XML) */
 	ezxml *root_dir = ezxml_parse_str(header, strlen(header));
 	
-	if (!root_dir)
-	{
-		error(0, "[ERROR] XML parser error: %s\n", ezxml_error(root_dir));
-		return NULL;
-	}
+	check(root_dir, "XML parser error: %s", ezxml_error(root_dir));
 	
 	__ba_get__process_dir(root_dir, &first_file, "");		/* Run the recursive (self-calling) function that goes through all the directories and adds everything to the list */
 	
@@ -100,6 +96,9 @@ ba_FileList* __ba_load_metadata(char *header)
 	free(header);
 	
 	return first_file;
+
+error:
+	return NULL;
 }
 
 void __ba_get__process_dir(ezxml *parent, ba_FileList **first_file, char *current_dir)
@@ -111,7 +110,7 @@ void __ba_get__process_dir(ezxml *parent, ba_FileList **first_file, char *curren
 	ezxml *file_node = ezxml_child(parent, "file");	/* A linked list of all the file nodes;			*/
 	ezxml *dir_node  = ezxml_child(parent, "dir");	/* A linked list of all the directory nodes.	*/
 	
-	const char *dir_name;			/* 'const' else it gives a warning for some reason...	*/
+	const char *dir_name;
 	char       *child_dir_name;
 	ba_File    *file;
 	
@@ -160,42 +159,17 @@ ba_File* __ba_get__get_file_metadata(ezxml *file_node, char *current_dir)
 	return file;
 }
 
-void ba_debug(BoxArchive *arch, uint8_t debug)
-{
-	if (! arch)
-	{
-		error(0, "[ERROR] Null-pointer given to ba_debug().\n");
-	}
-	else
-	{
-		if (! arch->file)
-		{
-			error(0, "[ERROR] File not open!\n");
-		}
-	}
-	
-	arch->__debug = debug ? 1 : 0 ;
-}
-
 /* If the file is not a BOX archive,
  * 0 will be returned
  */
 uint8_t ba_get_format(BoxArchive *arch)
 {
-	if (! arch)
-	{
-		error(0, "[ERROR] Null-pointer given to ba_get_format().\n");
-		return 0;
-	}
-	if (! arch->file)
-	{
-		error(0, "[ERROR] File not open!\n");
-		return 0;
-	}
+	check(arch,       "Null-pointer given to ba_get_format().");
+	check(arch->file, "File not open!");
 	
 	rewind(arch->file);				/* Go to the start of the file */
 
-	uint8_t hdr_bytes[4];	/* THREE cells long */
+	uint8_t hdr_bytes[4];
 
 	hdr_bytes[0] = fgetc(arch->file);
 	hdr_bytes[1] = fgetc(arch->file);
@@ -207,15 +181,14 @@ uint8_t ba_get_format(BoxArchive *arch)
 	} else {
 		return hdr_bytes[3];
 	}
+	
+error:
+	return 0;
 }
 
 int __ba_get_hdrlen(FILE* file)
 {
-	if (! file)
-	{
-		error(0, "[ERROR] File not open!\n");
-		return 0;
-	}
+	check(file, "File not open!");
 	
 	/* Go to the two-byte header length */
 	fseek(file, P_HEADER_LENGTH, SEEK_SET);
@@ -225,6 +198,9 @@ int __ba_get_hdrlen(FILE* file)
 	uint8_t byte2	=	fgetc(file);
 	
 	return cvt8to16(byte1, byte2);	/* function from ints.h */
+	
+error:
+	return 0;
 }
 
 char* ba_get_header(BoxArchive *arch)
@@ -234,11 +210,7 @@ char* ba_get_header(BoxArchive *arch)
 
 char* __ba_load_header(FILE* file)
 {
-	if (! file)
-	{
-		error(0, "[ERROR] Null-pointer given to ba_get_header().\n");
-		return 0;
-	}
+	check(file, "[ERROR] Null-pointer given to ba_get_header().");
 	
 	/* Go to the header */
 	fseek(file, P_HEADER, SEEK_SET);
@@ -246,32 +218,31 @@ char* __ba_load_header(FILE* file)
 	/* Get the header length and allocate enough memory to copy it in to */
 	hdrlen_t hdr_length = __ba_get_hdrlen(file);
 	
-	/*if (arch->__debug)
-		printf("[DEBUG] XML header length = %d bytes\n", hdr_length);*/
+	debug("XML header length = %d bytes\n", hdr_length);
 		
 	char* header = calloc(hdr_length+1, sizeof(char));	/* +1 for the null-byte */
 	
-	if (! header)
-	{
-		error(ERR_MEM, "[ERROR] Out of memory (malloc() returned NULL).\n");
-	}
+	check(header, "Out of memory (malloc() returned NULL).\n");
 	
 	/* Copy the header from the file into memory */
 	__fgetstrn(header, hdr_length, file);
 	
 	return header;
+	
+error:
+	return NULL;
 }
 
 void ba_close(BoxArchive *arch)
 {
 	if (! arch)
 	{
-		error(ERR_NULLPTR, "[ERROR] Null-pointer given to ba_close().\n");
+		log_err("Null-pointer given to ba_close().\n");
 	}
 	else
 	{
 		if (! arch->file)
-			fprintf(stderr, "[WARNING] Cannot close archive; archive not open!\n");
+			log_warn("Cannot close archive; archive not open!\n");
 		else
 			fclose(arch->file);
 		
@@ -284,11 +255,8 @@ void ba_close(BoxArchive *arch)
 
 void __ba_cleanup(BoxArchive *arch)
 {
-	if (! arch)
-	{
-		error(0, "[ERROR] Null-pointer given to __ba_cleanup().\n");
-		return;
-	}
+	check(arch, "Null-pointer given to __ba_cleanup().");
+error:
 	
 	/* Free all elments on heap */
 	if (arch->loc)
@@ -297,9 +265,13 @@ void __ba_cleanup(BoxArchive *arch)
 		free(arch->header);
 	
 	if (arch->file)
+	{
 		fclose(arch->file);
+	}
 	else
-		fprintf(stderr, "[WARNING] Could not close archive; archive not open.\n");
+	{
+		log_warn("Could not close archive; archive not open.");
+	}
 	
 	free(arch);
 }
