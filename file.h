@@ -23,4 +23,7 @@
   
   typedef struct ba_File ba_File;
   
+  /* A free function */
+  void ba_file_free(ba_File *file);
+  
 #endif

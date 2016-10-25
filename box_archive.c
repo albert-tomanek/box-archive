@@ -9,6 +9,7 @@
 #include "errors.h"
 #include "positions.h"
 #include "ints.h"
+#include "types.h"
 #include "ezxml/ezxml.h"
 
 typedef struct ezxml ezxml;		/* Not implemented in EzXML for some reason... */
@@ -18,7 +19,12 @@ typedef struct ezxml ezxml;		/* Not implemented in EzXML for some reason... */
 void     __ba_get__process_dir(ezxml *parent, ba_FileList **first_file, char *current_dir);
 ba_File* __ba_get__get_file_metadata(ezxml *file, char *current_dir);
 
+ba_FileList* __ba_load_metadata(char *header);
+
+char* __ba_load_header(FILE* file);
+int   __ba_get_hdrlen(FILE* file);
 void  __ba_cleanup(BoxArchive *arch);
+
 char* __dupcat(char *str1, char *str2, char *str3);
 void  __fgetstrn(char *dest, int length, FILE* file);
 
@@ -47,6 +53,7 @@ BoxArchive* ba_open(char *loc)
 	/* Set arch->loc */
 	arch->loc = strdup(loc);
 	
+	/* Check the format version */
 	uint8_t format = ba_get_format(arch);
 
 	if (format == 0)
@@ -58,15 +65,23 @@ BoxArchive* ba_open(char *loc)
 	{
 		error(ERR_FFORMAT, "[ERROR] Format version %d not supported.", format);
 	}
+	
+	/* Copy the XML header into memory */
+	arch->header = __ba_load_header(arch->file);
+	
+	/* Read the metadata from the header */
+	arch->file_list = __ba_load_metadata(arch->header);
 
 	return arch;
 }
 
 ba_FileList* ba_get_files(BoxArchive *arch)
 {
-	/* The XML header extracted from the archive */
-	char *header = ba_gethdr(arch);
-	
+	return arch->file_list;
+}
+
+ba_FileList* __ba_load_metadata(char *header)
+{	
 	/* The (yet to be initialised) list we'll be returning */
 	ba_FileList *first_file = NULL;
 	
@@ -194,50 +209,45 @@ uint8_t ba_get_format(BoxArchive *arch)
 	}
 }
 
-int   ba_get_hdrlen(BoxArchive *arch)
+int __ba_get_hdrlen(FILE* file)
 {
-	if (! arch)
-	{
-		error(0, "[ERROR] Null-pointer given to ba_get_hdrlen().\n");
-		return 0;
-	}
-	if (! arch->file)
+	if (! file)
 	{
 		error(0, "[ERROR] File not open!\n");
 		return 0;
 	}
 	
 	/* Go to the two-byte header length */
-	fseek(arch->file, P_HEADER_LENGTH, SEEK_SET);
+	fseek(file, P_HEADER_LENGTH, SEEK_SET);
 	
-	fgetc(arch->file);
-	uint8_t byte1	=	fgetc(arch->file);
-	uint8_t byte2	=	fgetc(arch->file);
+	fgetc(file);
+	uint8_t byte1	=	fgetc(file);
+	uint8_t byte2	=	fgetc(file);
 	
 	return cvt8to16(byte1, byte2);	/* function from ints.h */
 }
 
 char* ba_get_header(BoxArchive *arch)
 {
-	if (! arch)
+	return arch->header;
+}
+
+char* __ba_load_header(FILE* file)
+{
+	if (! file)
 	{
 		error(0, "[ERROR] Null-pointer given to ba_get_header().\n");
 		return 0;
 	}
-	if (! arch->file)
-	{
-		error(0, "[ERROR] File not open!\n");
-		return 0;
-	}
 	
 	/* Go to the header */
-	fseek(arch->file, P_HEADER, SEEK_SET);
+	fseek(file, P_HEADER, SEEK_SET);
 	
 	/* Get the header length and allocate enough memory to copy it in to */
-	uint16_t hdr_length = ba_get_hdrlen(arch);
+	hdrlen_t hdr_length = __ba_get_hdrlen(file);
 	
-	if (arch->__debug)
-		printf("[DEBUG] XML header length = %d bytes\n", hdr_length);
+	/*if (arch->__debug)
+		printf("[DEBUG] XML header length = %d bytes\n", hdr_length);*/
 		
 	char* header = calloc(hdr_length+1, sizeof(char));	/* +1 for the null-byte */
 	
@@ -247,7 +257,7 @@ char* ba_get_header(BoxArchive *arch)
 	}
 	
 	/* Copy the header from the file into memory */
-	__fgetstrn(header, hdr_length, arch->file);
+	__fgetstrn(header, hdr_length, file);
 	
 	return header;
 }
@@ -283,6 +293,8 @@ void __ba_cleanup(BoxArchive *arch)
 	/* Free all elments on heap */
 	if (arch->loc)
 		free(arch->loc);
+	if (arch->header)
+		free(arch->header);
 	
 	if (arch->file)
 		fclose(arch->file);

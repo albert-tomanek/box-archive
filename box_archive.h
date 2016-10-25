@@ -12,7 +12,11 @@
   /* Structs */
   struct BoxArchive {
       char *loc;
+	  char *header;
+	  
 	  FILE *file;
+	  
+	  ba_FileList *file_list;		/* Files and their metadata */
 	  
 	  /* private stuff */
 	  uint8_t __debug;
@@ -29,9 +33,6 @@
   #define   	ba_getfiles(A)	ba_get_files(A)
   
   void 		ba_debug(BoxArchive *arch, uint8_t debug);	/* Toggle debug output */
-  
-  int 		ba_get_hdrlen(BoxArchive *arch);			/* get the length of the header in bytes */
-  #define 	ba_get_header_length(A) ba_get_hdrlen(A)
   
   char*  	ba_get_header(BoxArchive *arch);			/* Returns pointer to heap; don't forget to free() it */
   #define 	ba_gethdr(A)	ba_get_header(A)
