@@ -7,7 +7,8 @@
   
   #include <stdint.h>
   
-  #define offset_t 	uint32_t
+  #define fsize_t	uint64_t
+  #define offset_t 	uint64_t
   #define hdrlen_t 	uint16_t
   
 #endif

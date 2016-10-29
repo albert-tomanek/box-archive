@@ -21,9 +21,9 @@ ba_File* __ba_get_file_metadata(ezxml *file, char *current_dir);
 
 ba_FileList* __ba_load_metadata(char *header);
 
-char* __ba_load_header(FILE* file);
-int   __ba_get_hdrlen(FILE* file);
-void  __ba_cleanup(BoxArchive *arch);
+char*     __ba_load_header(FILE* file);
+hdrlen_t  __ba_get_hdrlen(FILE* file);
+void      __ba_cleanup(BoxArchive *arch);
 
 char* __dupcat(char *str1, char *str2, char *str3);
 void  __fgetstrn(char *dest, int length, FILE* file);
@@ -80,10 +80,11 @@ error:
 	return NULL;
 }
 
-ba_FileList* __ba_load_metadata(char *header)
+ba_FileList* __ba_load_metadata(char *orig_header)
 {	
 	/* The (yet to be initialised) list we'll be returning */
 	ba_FileList *first_file = NULL;
+	char *header = strdup(orig_header);		/* We need our own copy, because I think ezxml calls strtok on it */
 	
 	/* The root directory of the archive (ie. root node of the XML) */
 	ezxml *root_dir = ezxml_parse_str(header, strlen(header));
@@ -140,6 +141,9 @@ void __ba_process_xml_dir(ezxml *parent, ba_FileList **first_file, char *current
 
 ba_File* __ba_get_file_metadata(ezxml *file_node, char *current_dir)
 {
+	/* Reads a file's metadata from the given XML node,	*
+	 * and puts it into a struct.						*/
+	
 	char *joint_file_name;
 	joint_file_name = __dupcat(current_dir, (const char*) ezxml_attr(file_node, "name"), "");
 	
@@ -159,11 +163,31 @@ ba_File* __ba_get_file_metadata(ezxml *file_node, char *current_dir)
 	return file;
 }
 
-/* If the file is not a BOX archive,
- * 0 will be returned
- */
+void ba_extract(BoxArchive *arch, char *path, char *dest)
+{
+	/* What do you *think* an extract function would do? */
+	
+	/* Get the file struct */
+	ba_File* file_meta = bafl_get(arch->file_list, path);
+	
+	/* Go to the start of the file in the data chunk */
+	fseek(arch->file, P_FILE_DATA + strlen(arch->header) + file_meta->__start, SEEK_SET);
+	
+	/* Open the file to write to */
+	FILE* out_file = fopen(dest, "w+");
+	
+	for (fsize_t offset = 0; offset < file_meta->__size; offset++)
+	{
+		/* Write each byte out to the file */
+		fputc(fgetc(arch->file), out_file);
+	}
+}
+
 uint8_t ba_get_format(BoxArchive *arch)
 {
+	/* If the file is not a BOX archive, *
+	 * 0 will be returned				 */
+	
 	check(arch,       "Null-pointer given to ba_get_format().");
 	check(arch->file, "File not open!");
 	
@@ -186,18 +210,23 @@ error:
 	return 0;
 }
 
-int __ba_get_hdrlen(FILE* file)
+hdrlen_t __ba_get_hdrlen(FILE* file)
 {
 	check(file, "File not open!");
 	
-	/* Go to the two-byte header length */
+	/* Go to the two-byte header length field */
 	fseek(file, P_HEADER_LENGTH, SEEK_SET);
 	
 	fgetc(file);
 	uint8_t byte1	=	fgetc(file);
 	uint8_t byte2	=	fgetc(file);
 	
-	return cvt8to16(byte1, byte2);	/* function from ints.h */
+	hdrlen_t length = cvt8to16(byte1, byte2);	/* function from ints.h */
+	
+	debug("HDRLEN bytes: %02X %02X", byte1, byte2);
+	debug("XML header length = %d bytes", length);
+	
+	return length;
 	
 error:
 	return 0;
@@ -205,21 +234,26 @@ error:
 
 char* ba_get_header(BoxArchive *arch)
 {
-	return arch->header;
+	check(arch, "[ERROR] Null-pointer given to ba_get_header().");
+	
+	return strdup(arch->header);
+	
+error:
+	return NULL;
 }
 
 char* __ba_load_header(FILE* file)
 {
-	check(file, "[ERROR] Null-pointer given to ba_get_header().");
-	
+	check(file, "[ERROR] Null-pointer given to __ba_load_header().");
+
+	/* Get the header length and allocate enough memory to copy it in to */
+	hdrlen_t hdr_length = __ba_get_hdrlen(file);
+
 	/* Go to the header */
 	fseek(file, P_HEADER, SEEK_SET);
 	
-	/* Get the header length and allocate enough memory to copy it in to */
-	hdrlen_t hdr_length = __ba_get_hdrlen(file);
+	debug("XML header starts at offset %d from start of file.", P_HEADER);
 	
-	debug("XML header length = %d bytes\n", hdr_length);
-		
 	char* header = calloc(hdr_length+1, sizeof(char));	/* +1 for the null-byte */
 	
 	check(header, "Out of memory (malloc() returned NULL).\n");

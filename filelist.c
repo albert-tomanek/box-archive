@@ -71,6 +71,23 @@ int bafl_count(ba_FileList *first)
 	return count;
 }
 
+ba_File* bafl_get(ba_FileList *first_file, char *path)
+{
+	ba_FileList* current = first_file;
+	
+	while (current)
+	{
+		if (! strcmp(path, current->file->path))
+		{
+			return current->file;
+		}
+		
+		current = current->next;
+	}
+	
+	return NULL;
+}
+
 ba_FileList* __bafl_getlast(ba_FileList *first)
 {
 	check(first, "Null pointer passed to __bafl_getlast()");

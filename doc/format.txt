@@ -15,10 +15,10 @@ Format v1
 	3			1		uint8_t		File version  (0x01)
 	4			1		0x00		padding
 	5			2		uint16_t	header_length
-	9 [			at off. 5	ASCII text  	Here goes the header XML file* .
-	] 10			2		0x00, 0xFF	End-of-header marker.
-	12					Binary data	The file data referred to by offsets stored in the deader XML file. (aka the data chunk)
-	13			2		0x00, 0xFF	End of file marker.
+	7 [			at off. 5	ASCII text  	Here goes the header XML file* .
+	] 			2		0x00, 0xFF	End-of-header marker.
+	9 [					Binary data	The file data referred to by offsets stored in the deader XML file. (aka the data chunk)
+	]			2		0x00, 0xFF	End of file marker.
 
 	XML Header:
 		Allowed tags:

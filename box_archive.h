@@ -4,6 +4,7 @@
   #include <stdio.h>
   #include <stdint.h>
   
+  #include "types.h"
   #include "filelist.h"
 
   #define BA_MAX_VER 1		/* The highest box archive version that the program supports */
@@ -31,6 +32,8 @@
   
   ba_FileList*  ba_get_files(BoxArchive *arch);
   #define   	ba_getfiles(A)	ba_get_files(A)
+  
+  void ba_extract(BoxArchive *arch, char *path, char *dest);
   
   void 		ba_debug(BoxArchive *arch, uint8_t debug);	/* Toggle debug output */
   

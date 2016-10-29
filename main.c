@@ -13,7 +13,8 @@ int main (int argc, char *argv[])
 	/* The archive struct */
 	BoxArchive *archive = NULL;
 
-	char arg;
+	char  arg;
+	char *dest = NULL;
 
 	enum Job job;
 
@@ -23,7 +24,7 @@ int main (int argc, char *argv[])
 		return 0;
 	}
 
-	while ((arg = getopt(argc, argv, "dlf:vhTH")) != -1)
+	while ((arg = getopt(argc, argv, "dlx:f:vhTH")) != -1)
 	{
 	switch (arg)
 	{
@@ -54,6 +55,12 @@ int main (int argc, char *argv[])
 		case 'l':
 			job = LIST;
 		break;
+		case 'x':
+		{
+			dest = strdup(optarg);	/* Store the location of where to extract to */
+			job = EXTRACT;
+		}
+		break;
 
 		case '?':
 			print_opt_err(optopt);
@@ -72,10 +79,18 @@ int main (int argc, char *argv[])
 		break;
 		
 		case EXTRACT:
-		break;
+		{
+			if (! archive) break;
+			
+			ba_extract(archive, "test.txt", "test.txt");
+			
+			break;
+		}
 		
 		case LIST:
 		{
+			if (! archive) break;
+			
 			ba_FileList *file = ba_getfiles(archive);	// more like file*s*
 			
 			check(file, "Error getting files.")
@@ -93,11 +108,18 @@ int main (int argc, char *argv[])
 		}
 		
 		case GET_FORMAT:
+		{
+			if (! archive) break;
+			
 			printf("Format version is %d.\n", ba_get_format(archive));
-		break;
+			
+			break;
+		}
 		
 		case PRINT_HEADER:
 		{
+			if (! archive) break;
+			
 			char *header = ba_get_header(archive);		/* Returned string is on _heap_ */
 			printf("%s\n", header);
 			free(header);
@@ -105,10 +127,15 @@ int main (int argc, char *argv[])
 		}
 	}
 
-	ba_close(archive);
+	if (archive)	ba_close(archive);
+	if (dest)		free(dest);
+	
 	return 0;
 
 error:
+	if (archive)	ba_close(archive);
+	if (dest)		free(dest);
+	
 	return 1;
 }
 
@@ -120,6 +147,9 @@ void print_opt_err(char optopt)
 	{
 	case 'f':
 		fprintf(stderr, "[ERROR] Invalid '-f' argument. Use: -f <file> \n");
+	break;
+	case 'x':
+		fprintf(stderr, "[ERROR] Invalid '-x' argument. Use: -x <destination> \n");
 	break;
 
 	default:
@@ -140,13 +170,14 @@ void help()
 	printf(" The BOX archiver.\n");
 	printf(" \n");
 	printf(" Format:\n");
-	printf("   box [-dhv] [Argument params] -f <BOX archive>\n");
+	printf("   box [-hvl] [Argument params] -f <BOX archive>\n");
 	printf(" \n");
 	printf(" Arguments:\n");
 	printf("   -H			Print the header XML of an archive.\n");
 	printf("   -T			Print the Type/version of an archive.\n");
+	printf("   -l			List the files in the archive.\n");
+	printf("   -x <dest>	Extract the files to the given destination.\n");
 	printf(" \n");
-	printf("   -d			Print debug information.\n");
 	printf("   -v			Print the archiver's version.\n");
 	printf("   -h			Print this help text.\n");
 	printf(" \n");
