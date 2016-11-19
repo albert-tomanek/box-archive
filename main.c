@@ -82,7 +82,20 @@ int main (int argc, char *argv[])
 		{
 			if (! archive) break;
 			
-			ba_extract(archive, "test.txt", "test.txt");
+			ba_FileList *file = ba_getfiles(archive);
+			check(file, "Error getting files.");
+			
+			char *out_name;
+			
+			while (file)
+			{
+				out_name = dupcat(dest, BA_SEP, file->file->path);
+				
+				printf("%s\n", out_name);
+				ba_extract(archive, file->file->path, out_name);
+				
+				file = file->next;
+			}
 			
 			break;
 		}
@@ -93,7 +106,7 @@ int main (int argc, char *argv[])
 			
 			ba_FileList *file = ba_getfiles(archive);	// more like file*s*
 			
-			check(file, "Error getting files.")
+			check(file, "Error getting files.");
 			
 			while (file)
 			{
@@ -187,3 +200,13 @@ void help()
 	printf("   Copyright (c) 2016 Albert Tomanek <electron826@gmail.com>\n\n");
 }
 
+char* dupcat(char *str1, char *str2, char *str3)
+{
+	/* Like strcat, but makes a copy of the text */
+	char *out;
+	
+	out = calloc( strlen(str1)+strlen(str2)+strlen(str3)+1, sizeof(char));
+	sprintf(out, "%s%s%s", str1, str2, str3);
+	
+	return out;
+}

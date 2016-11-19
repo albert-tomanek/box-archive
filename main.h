@@ -21,5 +21,6 @@
   void help();
   
   void print_opt_err(char optopt);
+  char* dupcat(char *str1, char *str2, char *str3);
 
 #endif
