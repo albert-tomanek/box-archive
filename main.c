@@ -67,72 +67,72 @@ int main (int argc, char *argv[])
 		break;
 	}
 	}
-	
+
 	/* Now do the specified job */
-	
+
 	switch (job)
 	{
 		case NONE:
 		break;
-		
+
 		case CREATE:
 		break;
-		
+
 		case EXTRACT:
 		{
 			if (! archive) break;
-			
-			ba_FileList *file = ba_getfiles(archive);
-			check(file, "Error getting files.");
-			
+
+			ba_EntryList *entry = ba_get_entries(archive);
+			check(entry, "Error getting entries.");
+
 			char *out_name;
-			
-			while (file)
+
+			while (entry)
 			{
-				out_name = dupcat(dest, BA_SEP, file->file->path);
-				
+				out_name = dupcat(dest, (dest[strlen(dest)-1] == BA_SEP[0] ? "" : BA_SEP), entry->entry->path);		/* The tertiary operator is used to avoid things like extracting to '/tmp//test.txt' when extracting to '/tmp/' */
+
 				printf("%s\n", out_name);
-				ba_extract(archive, file->file->path, out_name);
-				
-				file = file->next;
+				ba_extract(archive, entry->entry->path, out_name);
+
+				entry = entry->next;
 			}
-			
+
 			break;
 		}
-		
+
 		case LIST:
 		{
 			if (! archive) break;
-			
-			ba_FileList *file = ba_getfiles(archive);	// more like file*s*
-			
-			check(file, "Error getting files.");
-			
-			while (file)
+
+			ba_EntryList *entry = ba_get_entries(archive);	// more like file*s*
+
+			check(entry, "Error getting entries.");
+
+			while (entry)
 			{
-				printf("%s\n", file->file->path);
-				
-				file = file->next;
+				printf("%s\n", entry->entry->path);
+
+				entry = entry->next;
 			}
-			
-			bafl_free(&file);
-			
+
+			bael_free(&entry);
+
 			break;
 		}
-		
+
 		case GET_FORMAT:
 		{
 			if (! archive) break;
-			
+
 			printf("Format version is %d.\n", ba_get_format(archive));
-			
+
 			break;
 		}
-		
+
 		case PRINT_HEADER:
 		{
 			if (! archive) break;
-			
+
 			char *header = ba_get_header(archive);		/* Returned string is on _heap_ */
 			printf("%s\n", header);
 			free(header);
@@ -142,13 +142,13 @@ int main (int argc, char *argv[])
 
 	if (archive)	ba_close(archive);
 	if (dest)		free(dest);
-	
+
 	return 0;
 
 error:
 	if (archive)	ba_close(archive);
 	if (dest)		free(dest);
-	
+
 	return 1;
 }
 
@@ -168,7 +168,7 @@ void print_opt_err(char optopt)
 	default:
 		fprintf(stderr, "[WARNING] '-%c' is an invalid option! Ignoring.\n", optopt);
 	}
-	
+
 	exit(1);
 }
 
@@ -204,9 +204,9 @@ char* dupcat(char *str1, char *str2, char *str3)
 {
 	/* Like strcat, but makes a copy of the text */
 	char *out;
-	
+
 	out = calloc( strlen(str1)+strlen(str2)+strlen(str3)+1, sizeof(char));
 	sprintf(out, "%s%s%s", str1, str2, str3);
-	
+
 	return out;
 }

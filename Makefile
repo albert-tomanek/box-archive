@@ -9,8 +9,8 @@ EZXML = ezxml
 default: $(TARGET)
 all: default
 
-OBJECTS = main.o ezxml/ezxml.o box_archive.o filelist.o file.o ints.o
-HEADERS = main.h ezxml/ezxml.h box_archive.h filelist.h file.c ints.h positions.h errors.h dbg.h
+OBJECTS = main.o ezxml/ezxml.o box_archive.o entrylist.o entry.o ints.o
+HEADERS = main.h ezxml/ezxml.h box_archive.h entrylist.h entry.h ints.h positions.h errors.h dbg.h
 
 %.o: %.c $(HEADERS)
 	$(CC) $(CFLAGS) -c $< -o $@
