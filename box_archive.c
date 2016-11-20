@@ -18,7 +18,7 @@ typedef struct ezxml ezxml;		/* Not implemented in EzXML for some reason... */
 
 void     __ba_process_xml_dir(ezxml *parent, ba_EntryList **first_entry, char *current_dir);
 ba_Entry* __ba_get_file_metadata(ezxml *file, char *current_dir);
-//ba_Entry* __ba_get_dir_metadata(ezxml *file, char *current_dir);
+ba_Entry* __ba_get_dir_metadata (ezxml *dir, char *current_dir);
 
 ba_EntryList* __ba_load_metadata(char *header);
 
@@ -86,6 +86,8 @@ ba_EntryList* __ba_load_metadata(char *orig_header)
 	/* This function gets the XML header,			*
 	 * and makes a ba_EntryList from it.			*/
 
+	check(orig_header, "Null-pointer passed to __ba_load_metadata().");
+
 	/* The (yet to be initialised) list we'll be returning */
 	ba_EntryList *first_entry = NULL;
 	char *header = strdup(orig_header);		/* We need our own copy, because I think ezxml calls strtok on it */
@@ -115,8 +117,6 @@ void __ba_process_xml_dir(ezxml *parent, ba_EntryList **first_entry, char *curre
 	ezxml *file_node = ezxml_child(parent, "file");	/* A linked list of all the file nodes;			*/
 	ezxml *dir_node  = ezxml_child(parent, "dir");	/* A linked list of all the directory nodes.	*/
 
-	const char *dir_name;
-	char       *child_dir_name;
 	ba_Entry   *entry;
 
 	while (file_node)
@@ -131,14 +131,15 @@ void __ba_process_xml_dir(ezxml *parent, ba_EntryList **first_entry, char *curre
 
 	while (dir_node)
 	{
-		dir_name   = ezxml_attr(dir_node, "name");
+		/* Get the directory's metadata */
+		entry = __ba_get_dir_metadata(dir_node, current_dir);
+
+		/* Add the directory to the entry list */
+		bael_add(first_entry, entry);
 
 		/* make a string with the directory name to pass to the recursing function */
-		child_dir_name = __dupcat(current_dir, (char*) dir_name, BA_SEP);
+		__ba_process_xml_dir(dir_node, first_entry, entry->path);
 
-		__ba_process_xml_dir(dir_node, first_entry, child_dir_name);
-
-		free(child_dir_name);
 		dir_node = dir_node->next;
 	}
 }
@@ -153,11 +154,9 @@ ba_Entry* __ba_get_file_metadata(ezxml *file_node, char *current_dir)
 
 	ba_Entry *file = malloc(sizeof(ba_Entry));
 
-	if (! file)	/* Check for NULLs */
-	{
-		return NULL;
-	}
+	check(file, "malloc returned NULL.");
 
+	file->name = strdup( (const char*) ezxml_attr(file_node, "name") );
 	file->path = joint_file_name;		/* Note: the string will be freed when the struct is freed.	*/
 	file->type = ba_EntryType_FILE;
 
@@ -165,6 +164,31 @@ ba_Entry* __ba_get_file_metadata(ezxml *file_node, char *current_dir)
 	file->__start = atoi( ezxml_attr(file_node, "start") );
 
 	return file;
+
+error:
+	return NULL;
+}
+
+ba_Entry* __ba_get_dir_metadata(ezxml *dir_node, char *current_dir)
+{
+	/* Reads a file's metadata from the given XML node,	*
+	 * and puts it into a struct.						*/
+
+	char *joint_dir_name;
+	joint_dir_name = __dupcat(current_dir, (const char*) ezxml_attr(dir_node, "name"), BA_SEP);
+
+	ba_Entry *dir = malloc(sizeof(ba_Entry));
+
+	check(dir, "malloc returned NULL.");
+
+	dir->name = strdup( (const char*) ezxml_attr(dir_node, "name") );
+	dir->path = joint_dir_name;		/* Note: the string will be freed when the struct is freed.	*/
+	dir->type = ba_EntryType_DIR;
+
+	return dir;
+
+error:
+	return NULL;
 }
 
 int ba_extract(BoxArchive *arch, char *path, char *dest)

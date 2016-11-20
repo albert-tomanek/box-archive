@@ -4,9 +4,11 @@
 #include <unistd.h>
 
 #include "dbg.h"
+#include "dupcat.h"
 
 #include "main.h"
 #include "box_archive.h"
+#include "filesystem.h"
 
 int main (int argc, char *argv[])
 {
@@ -92,7 +94,15 @@ int main (int argc, char *argv[])
 				out_name = dupcat(dest, (dest[strlen(dest)-1] == BA_SEP[0] ? "" : BA_SEP), entry->entry->path);		/* The tertiary operator is used to avoid things like extracting to '/tmp//test.txt' when extracting to '/tmp/' */
 
 				printf("%s\n", out_name);
-				ba_extract(archive, entry->entry->path, out_name);
+
+				if (entry->entry->type == ba_EntryType_FILE)
+				{
+					ba_extract(archive, entry->entry->path, out_name);
+				}
+				else if (entry->entry->type == ba_EntryType_DIR)
+				{
+					ba_mkdir(dest, entry->entry);
+				}
 
 				entry = entry->next;
 			}
@@ -198,15 +208,4 @@ void help()
 	printf("   Copyright (c) 2004-2006 Aaron Voisine <aaron@voisine.org>\n");
 	printf(" The BOX archiver:\n");
 	printf("   Copyright (c) 2016 Albert Tomanek <electron826@gmail.com>\n\n");
-}
-
-char* dupcat(char *str1, char *str2, char *str3)
-{
-	/* Like strcat, but makes a copy of the text */
-	char *out;
-
-	out = calloc( strlen(str1)+strlen(str2)+strlen(str3)+1, sizeof(char));
-	sprintf(out, "%s%s%s", str1, str2, str3);
-
-	return out;
 }

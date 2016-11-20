@@ -13,7 +13,9 @@
   };
 
   struct ba_Entry {
-	  char *path;
+	  char *path;		/* The full path (eg. "/tmp/myProg/file.dat")	*/
+	  char *name;		/* The file name (eg. "file.dat")				*/
+
 	  enum  ba_EntryType type;
 
 	  offset_t __size;		/* <- These store the start and size of the file in the data chunk 	*/
