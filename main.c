@@ -16,7 +16,8 @@ int main (int argc, char *argv[])
 	BoxArchive *archive = NULL;
 
 	char  arg;
-	char *dest = NULL;
+	char *dest = NULL;	/* Where to extract from */
+	char *src  = NULL;	/* Where to get files from */
 
 	enum Job job;
 
@@ -26,7 +27,7 @@ int main (int argc, char *argv[])
 		return 0;
 	}
 
-	while ((arg = getopt(argc, argv, "dlx:f:vhTH")) != -1)
+	while ((arg = getopt(argc, argv, "dlc:x:f:vhTH")) != -1)
 	{
 	switch (arg)
 	{
@@ -57,12 +58,20 @@ int main (int argc, char *argv[])
 		case 'l':
 			job = LIST;
 		break;
+		case 'c':
+		{
+			src = strdup(optarg);
+			job = CREATE;
+
+			break;
+		}
 		case 'x':
 		{
 			dest = strdup(optarg);	/* Store the location of where to extract to */
 			job = EXTRACT;
+
+			break;
 		}
-		break;
 
 		case '?':
 			print_opt_err(optopt);
@@ -78,7 +87,27 @@ int main (int argc, char *argv[])
 		break;
 
 		case CREATE:
-		break;
+		{
+			archive = ba_new();
+			check(archive, "Error creating new archive.");
+
+			ba_EntryList *entry = NULL;
+
+			entry = ba_getdir(src);
+
+			while (entry)
+			{
+				if (entry->entry->type == ba_EntryType_FILE)
+				{
+					/* Add the current file to the archve */
+					ba_add(archive, entry->entry);
+				}
+
+				entry = entry->next;
+			}
+
+			break;
+		}
 
 		case EXTRACT:
 		{
@@ -162,7 +191,9 @@ error:
 	return 1;
 }
 
-
+void process_dir()
+{
+}
 
 void print_opt_err(char optopt)
 {
@@ -173,6 +204,9 @@ void print_opt_err(char optopt)
 	break;
 	case 'x':
 		fprintf(stderr, "[ERROR] Invalid '-x' argument. Use: -x <destination> \n");
+	break;
+	case 'c':
+		fprintf(stderr, "[ERROR] Invalid '-c' argument. Use: -c <source> \n");
 	break;
 
 	default:
@@ -200,6 +234,7 @@ void help()
 	printf("   -T			Print the Type/version of an archive.\n");
 	printf("   -l			List the files in the archive.\n");
 	printf("   -x <dest>	Extract the files to the given destination.\n");
+	printf("   -c <src>		Create an archive from the given directory.\n");
 	printf(" \n");
 	printf("   -v			Print the archiver's version.\n");
 	printf("   -h			Print this help text.\n");

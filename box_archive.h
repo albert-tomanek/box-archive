@@ -23,10 +23,11 @@
 
   };
 
-  typedef struct BoxArchive  BoxArchive;
+  typedef struct BoxArchive BoxArchive;
 
 
   /* Functions */
+  BoxArchive* 	ba_new();
   BoxArchive* 	ba_open(char *loc);           /* The uint8_t is used to store a boolean value */
   void			ba_close(BoxArchive *arch);
 

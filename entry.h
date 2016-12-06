@@ -6,6 +6,7 @@
   #define __BOX_ARCHIVE_ENTRY_H__
 
   #include "types.h"
+  #include "file.h"
 
   enum ba_EntryType {
 	  ba_EntryType_FILE,

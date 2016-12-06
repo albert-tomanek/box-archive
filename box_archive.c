@@ -3,20 +3,21 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "dbg.h"
+#include "ezxml/ezxml.h"
+
 #include "box_archive.h"
 #include "entrylist.h"
 #include "entry.h"
 #include "positions.h"
 #include "ints.h"
 #include "types.h"
-#include "dbg.h"
-#include "ezxml/ezxml.h"
 
 typedef struct ezxml ezxml;		/* Not implemented in EzXML for some reason... */
 
 /* Private stuff */
 
-void     __ba_process_xml_dir(ezxml *parent, ba_EntryList **first_entry, char *current_dir);
+void      __ba_process_xml_dir(ezxml *parent, ba_EntryList **first_entry, char *current_dir);
 ba_Entry* __ba_get_file_metadata(ezxml *file, char *current_dir);
 ba_Entry* __ba_get_dir_metadata (ezxml *dir, char *current_dir);
 
@@ -71,9 +72,31 @@ error:
 	return NULL;
 }
 
+BoxArchive* ba_new()
+{
+	BoxArchive *arch = malloc(sizeof(BoxArchive));
+	check(arch, "Out of memory!");
+
+	arch->loc        = NULL;		/* Hasn't been saved anywhere yet */
+	arch->header     = NULL;
+	arch->file       = NULL;
+	arch->entry_list = NULL;
+
+	return arch;
+
+error:
+	return NULL;
+}
+
+void ba_add(BoxArchive *arch, ba_Entry *entry)
+{
+	check(arch, "Null pointer given for BoxArchive *arch to ba_add().");
+	check(arch, "Null pointer given for ba_Entry *entry to ba_add().");
+}
+
 ba_EntryList* ba_get_entries(BoxArchive *arch)
 {
-	check(arch, "Null pointer given to ba_get_entrys().")
+	check(arch, "Null pointer given to ba_get_entrys().");
 
 	return arch->entry_list;
 
@@ -310,13 +333,13 @@ void ba_close(BoxArchive *arch)
 	}
 	else
 	{
-		if (! arch->file)
-			log_warn("Cannot close archive; archive not open!\n");
-		else
-			fclose(arch->file);
+		/* Free strings */
+		if (arch->loc)		free(arch->loc);
+		if (arch->header)	free(arch->header);
 
-		if (arch->loc)
-			free(arch->loc);
+		/* Call other free functions */
+		if (arch->file)			fclose(arch->file);
+		if (arch->entry_list)	bael_free(&arch->entry_list);
 
 		free(arch);
 	}
