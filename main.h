@@ -4,8 +4,6 @@
 
   #include "box_archive.h"
 
-  /*build*/
-
   #define BOX_ARCHIVER_VERSION "v0.01 Dev Alpha"
   #define BOX_ARCHIVER_LICENSE "GPL"
 
@@ -22,5 +20,7 @@
   void help();
 
   void print_opt_err(char optopt);
+  void rec_list_func    (ba_Entry *first_entry);
+  void rec_extract_func (BoxArchive *arch, ba_Entry *first_entry, char *dest);
 
 #endif

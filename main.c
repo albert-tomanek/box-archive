@@ -83,11 +83,8 @@ int main (int argc, char *argv[])
 
 	switch (job)
 	{
-		case NONE:
-		break;
-
 		case CREATE:
-		{
+		/*{
 			archive = ba_new();
 			check(archive, "Error creating new archive.");
 
@@ -99,7 +96,7 @@ int main (int argc, char *argv[])
 			{
 				if (entry->entry->type == ba_EntryType_FILE)
 				{
-					/* Add the current file to the archve */
+					/ Add the current file to the archve /
 					ba_add(archive, entry->entry);
 				}
 
@@ -107,34 +104,17 @@ int main (int argc, char *argv[])
 			}
 
 			break;
-		}
+		}*/
 
 		case EXTRACT:
 		{
 			if (! archive) break;
 
-			ba_EntryList *entry = ba_get_entries(archive);
-			check(entry, "Error getting entries.");
+			ba_Entry *first_entry = ba_get_entries(archive);
+			check(first_entry, "Error getting entries.");
 
-			char *out_name;
-
-			while (entry)
-			{
-				out_name = dupcat(dest, (dest[strlen(dest)-1] == BA_SEP[0] ? "" : BA_SEP), entry->entry->path);		/* The tertiary operator is used to avoid things like extracting to '/tmp//test.txt' when extracting to '/tmp/' */
-
-				printf("%s\n", out_name);
-
-				if (entry->entry->type == ba_EntryType_FILE)
-				{
-					ba_extract(archive, entry->entry->path, out_name);
-				}
-				else if (entry->entry->type == ba_EntryType_DIR)
-				{
-					ba_mkdir(dest, entry->entry);
-				}
-
-				entry = entry->next;
-			}
+			rec_extract_func(archive, first_entry, dest);	/* Run our recursive function which goes through each direcotry			*
+													 		 * and extracts the files in it. Note: 'dest' is defined beforehand.	*/
 
 			break;
 		}
@@ -143,18 +123,11 @@ int main (int argc, char *argv[])
 		{
 			if (! archive) break;
 
-			ba_EntryList *entry = ba_get_entries(archive);	// more like file*s*
+			ba_Entry *first_entry = ba_get_entries(archive);
 
-			check(entry, "Error getting entries.");
+			check(first_entry, "Error getting entries.");
 
-			while (entry)
-			{
-				printf("%s\n", entry->entry->path);
-
-				entry = entry->next;
-			}
-
-			bael_free(&entry);
+			rec_list_func(first_entry);
 
 			break;
 		}
@@ -177,6 +150,10 @@ int main (int argc, char *argv[])
 			free(header);
 			break;
 		}
+
+		case NONE:
+		default:
+		break;
 	}
 
 	if (archive)	ba_close(archive);
@@ -191,8 +168,53 @@ error:
 	return 1;
 }
 
-void process_dir()
+void rec_list_func (ba_Entry *first_entry)
 {
+	if (! first_entry)	return;
+
+	ba_Entry *current = first_entry;
+
+	while (current)
+	{
+		printf("%s\n", current->path);
+
+		if (current->type == ba_EntryType_DIR)
+		{
+			rec_list_func(current->child_entries);
+		}
+
+		current = current->next;
+	}
+}
+
+void rec_extract_func (BoxArchive *arch, ba_Entry *first_entry, char *dest)
+{
+	if (! first_entry)	return;
+
+	ba_Entry *current = first_entry;
+
+	char *out_name;
+
+	while (current)
+	{
+		out_name = dupcat(dest, (dest[strlen(dest)-1] == BA_SEP[0] ? "" : BA_SEP), current->path);		/* The tertiary operator is used to avoid things like extracting to '/tmp//test.txt' when extracting to '/tmp/' */
+
+		printf("%s\n", out_name);
+
+		if (current->type == ba_EntryType_FILE)
+		{
+			ba_extract(arch, current, out_name);
+		}
+		else if (current->type == ba_EntryType_DIR)
+		{
+			ba_mkdir(dest, current);			/* Make the direcotry */
+			rec_extract_func(arch, current->child_entries, dest);
+		}
+
+
+		free(out_name);			/* It's on heap, because dupcat uses malloc */
+		current = current->next;
+	}
 }
 
 void print_opt_err(char optopt)

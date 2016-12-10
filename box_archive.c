@@ -17,23 +17,43 @@ typedef struct ezxml ezxml;		/* Not implemented in EzXML for some reason... */
 
 /* Private stuff */
 
-void      __ba_process_xml_dir(ezxml *parent, ba_EntryList **first_entry, char *current_dir);
-ba_Entry* __ba_get_file_metadata(ezxml *file, char *current_dir);
-ba_Entry* __ba_get_dir_metadata (ezxml *dir, char *current_dir);
-
-ba_EntryList* __ba_load_metadata(char *header);
+void      __ba_load_dir_tree(char *orig_header, ba_Entry **first_entry);
+void      __ba_process_xml_dir(ezxml *parent_xml, ba_Entry **first_entry, ba_Entry *parent_dir);	/* parent_dir=NULL if toplevel dir */
+ba_Entry* __ba_get_file_metadata(ezxml *file_node, ba_Entry *parent_dir);
+ba_Entry* __ba_get_dir_metadata(ezxml *dir_node, ba_Entry *parent_dir);
 
 char*     __ba_load_header(FILE* file);
 hdrlen_t  __ba_get_hdrlen(FILE* file);
-void      __ba_cleanup(BoxArchive *arch);
 
 char* __dupcat(char *str1, char *str2, char *str3);
 void  __fgetstrn(char *dest, int length, FILE* file);
 
 /* Library functions */
 
+BoxArchive* ba_new()
+{
+	/* Creates a new, empty BoxArchive struct,	*
+	 * and returns a pointer to it.				*/
+
+	BoxArchive *arch = malloc(sizeof(BoxArchive));
+	check(arch, "Out of memory!");
+
+	arch->loc        = NULL;		/* Hasn't been saved anywhere yet */
+	arch->header     = NULL;
+	arch->file       = NULL;
+	arch->entry_list = NULL;
+
+	return arch;
+
+error:
+	return NULL;
+}
+
 BoxArchive* ba_open(char *loc)
 {
+	/* Reads all the data (except the file data itsself)	*
+	 * from a .box file, and returns a pointer to it.		*/
+
 	BoxArchive *arch = malloc(sizeof(BoxArchive));
 
 	check(arch, "Out of memory!");
@@ -56,35 +76,14 @@ BoxArchive* ba_open(char *loc)
 	arch->header = __ba_load_header(arch->file);
 
 	/* Read the metadata from the header */
-	arch->entry_list = __ba_load_metadata(arch->header);
+	__ba_load_dir_tree(arch->header, &arch->entry_list);
 
 	return arch;
 
 error:
 
-	if (arch)
-	{
-		if (arch->file)
-			fclose(arch->file);
-		free(arch);
-	}
+	ba_close(arch);
 
-	return NULL;
-}
-
-BoxArchive* ba_new()
-{
-	BoxArchive *arch = malloc(sizeof(BoxArchive));
-	check(arch, "Out of memory!");
-
-	arch->loc        = NULL;		/* Hasn't been saved anywhere yet */
-	arch->header     = NULL;
-	arch->file       = NULL;
-	arch->entry_list = NULL;
-
-	return arch;
-
-error:
 	return NULL;
 }
 
@@ -92,27 +91,32 @@ void ba_add(BoxArchive *arch, ba_Entry *entry)
 {
 	check(arch, "Null pointer given for BoxArchive *arch to ba_add().");
 	check(arch, "Null pointer given for ba_Entry *entry to ba_add().");
+
+	/* YET TO BE IMPLEMENTED */
+
+error:
+	return;
 }
 
-ba_EntryList* ba_get_entries(BoxArchive *arch)
+ba_Entry* ba_get_entries(BoxArchive *arch)
 {
-	check(arch, "Null pointer given to ba_get_entrys().");
+	check(arch, "Null pointer given to ba_get_entries().");
 
-	return arch->entry_list;
+	return arch->entry_list;	/* This is the real thing, not a copy, so be careful with it */
 
 error:
 	return NULL;
 }
 
-ba_EntryList* __ba_load_metadata(char *orig_header)
+void __ba_load_dir_tree(char *orig_header, ba_Entry **first_entry)
 {
-	/* This function gets the XML header,			*
-	 * and makes a ba_EntryList from it.			*/
+	/* This function reads the XML header,			*
+	 * and loads the files' metadata into a tree	*
+	 * in memory. It then changes the first_entry	*
+	 * to point to this tree.						*/
 
-	check(orig_header, "Null-pointer passed to __ba_load_metadata().");
+	check(orig_header, "Null-pointer passed to __ba_load_dir_tree().");
 
-	/* The (yet to be initialised) list we'll be returning */
-	ba_EntryList *first_entry = NULL;
 	char *header = strdup(orig_header);		/* We need our own copy, because I think ezxml calls strtok on it */
 
 	/* The root directory of the archive (ie. root node of the XML) */
@@ -120,34 +124,36 @@ ba_EntryList* __ba_load_metadata(char *orig_header)
 
 	check(root_dir, "XML parser error: %s", ezxml_error(root_dir));
 
-	__ba_process_xml_dir(root_dir, &first_entry, "");		/* Run the recursive (self-calling) function that goes through all the directories and adds everything to the list */
+	__ba_process_xml_dir(root_dir, first_entry, NULL);		/* Run the recursive (self-calling) function that goes through all the directories and adds everything to the list */
 
 	ezxml_free(root_dir);
 	free(header);
 
-	return first_entry;
+	return;
 
 error:
-	return NULL;
+	return;
 }
 
-void __ba_process_xml_dir(ezxml *parent, ba_EntryList **first_entry, char *current_dir)
+void __ba_process_xml_dir(ezxml *parent_xml, ba_Entry **first_entry, ba_Entry *parent_dir)
 {
-	/* Recursive function used by __ba_load_metadata(),
-	 * to add each entry to the given ba_EntryList.
-	 */
+	/* Recursive function used by __ba_load_dir_tree()	*
+	 * Adds all the files/dirs in the given directory	*
+	 * to the directory tree which is in memory,		*
+	 * which is pointed to by first_entry.				*/
 
-	ezxml *file_node = ezxml_child(parent, "file");	/* A linked list of all the file nodes;			*/
-	ezxml *dir_node  = ezxml_child(parent, "dir");	/* A linked list of all the directory nodes.	*/
+	ezxml *file_node = ezxml_child(parent_xml, "file");	/* A linked list of all the file nodes;			*/
+	ezxml *dir_node  = ezxml_child(parent_xml, "dir");	/* A linked list of all the directory nodes.	*/
 
 	ba_Entry   *entry;
 
 	while (file_node)
 	{
-		entry = __ba_get_file_metadata(file_node, current_dir);
+		entry = __ba_get_file_metadata(file_node, parent_dir);
 
 		/* Add the file path to the list */
-		bael_add(first_entry, entry);
+		bael_add( parent_dir ? &(parent_dir->child_entries) : first_entry, entry);		/* If we are in the top level directory and parent_dir is NULL,	*
+																				 		 * the pointer to parent_dir->child_entries would be false.		*/
 
 		file_node = file_node->next;
 	}
@@ -155,58 +161,69 @@ void __ba_process_xml_dir(ezxml *parent, ba_EntryList **first_entry, char *curre
 	while (dir_node)
 	{
 		/* Get the directory's metadata */
-		entry = __ba_get_dir_metadata(dir_node, current_dir);
+		entry = __ba_get_dir_metadata(dir_node, parent_dir);
 
 		/* Add the directory to the entry list */
-		bael_add(first_entry, entry);
+		bael_add( parent_dir ? &(parent_dir->child_entries) : first_entry, entry);
 
-		/* make a string with the directory name to pass to the recursing function */
-		__ba_process_xml_dir(dir_node, first_entry, entry->path);
+		/* Run this function again, this time on the newly loaded directory */
+		__ba_process_xml_dir(dir_node, &(entry->child_entries), entry);
 
 		dir_node = dir_node->next;
 	}
 }
 
-ba_Entry* __ba_get_file_metadata(ezxml *file_node, char *current_dir)
+ba_Entry* __ba_get_file_metadata(ezxml *file_node, ba_Entry *parent_dir)
 {
 	/* Reads a file's metadata from the given XML node,	*
-	 * and puts it into a struct.						*/
+	 * and puts it into a ba_Entry and ba_File struct.	*/
 
 	char *joint_file_name;
-	joint_file_name = __dupcat(current_dir, (const char*) ezxml_attr(file_node, "name"), "");
+	joint_file_name = __dupcat( parent_dir ? parent_dir->path : "" , (const char*) ezxml_attr(file_node, "name"), "");
 
-	ba_Entry *file = malloc(sizeof(ba_Entry));
+	ba_Entry *file_entry = malloc(sizeof(ba_Entry));	/* The entry used to hold the file's metadata */
+	ba_File  *file_data  = malloc(sizeof(ba_File));		/* The struct used to hold the file's position in the box archive, and a buffer of the contents */
+	check(file_entry && file_data, "malloc returned NULL.");
 
-	check(file, "malloc returned NULL.");
+	file_entry->file_data = file_data;
+	file_entry->parent_dir = parent_dir;
+	file_entry->child_entries = NULL;
 
-	file->name = strdup( (const char*) ezxml_attr(file_node, "name") );
-	file->path = joint_file_name;		/* Note: the string will be freed when the struct is freed.	*/
-	file->type = ba_EntryType_FILE;
+	file_entry->name = strdup( (const char*) ezxml_attr(file_node, "name") );
+	file_entry->path = joint_file_name;		/* Note: the string will be freed when the struct is freed.	*/
+	file_entry->type = ba_EntryType_FILE;
 
-	file->__size  = atoi( ezxml_attr(file_node, "size")  );
-	file->__start = atoi( ezxml_attr(file_node, "start") );
+	file_data->contents = NULL;						/* The file will only be loaded into memory if it is being modified */
+	file_data->__size   = atoi( ezxml_attr(file_node, "size")  );
+	file_data->__start  = atoi( ezxml_attr(file_node, "start") );
 
-	return file;
+	return file_entry;
 
 error:
 	return NULL;
 }
 
-ba_Entry* __ba_get_dir_metadata(ezxml *dir_node, char *current_dir)
+ba_Entry* __ba_get_dir_metadata(ezxml *dir_node, ba_Entry *parent_dir)
 {
-	/* Reads a file's metadata from the given XML node,	*
-	 * and puts it into a struct.						*/
+	/* Reads a directory's metadata from the given XML node,	*
+	 * and puts it into a ba_Entry struct.						*/
 
 	char *joint_dir_name;
-	joint_dir_name = __dupcat(current_dir, (const char*) ezxml_attr(dir_node, "name"), BA_SEP);
+	joint_dir_name = __dupcat( parent_dir ? parent_dir->path : "", (const char*) ezxml_attr(dir_node, "name"), BA_SEP);
 
 	ba_Entry *dir = malloc(sizeof(ba_Entry));
 
 	check(dir, "malloc returned NULL.");
 
+	dir->type = ba_EntryType_DIR;
 	dir->name = strdup( (const char*) ezxml_attr(dir_node, "name") );
 	dir->path = joint_dir_name;		/* Note: the string will be freed when the struct is freed.	*/
-	dir->type = ba_EntryType_DIR;
+
+	dir->file_data  = NULL; 		/* This is not a file */
+	dir->parent_dir = parent_dir;
+	dir->child_entries = NULL;		/* For *now*. This will ba changed by calling __ba_get_file_metadata() on the direcotry. */
+
+	dir->next = NULL;	/* Will be changed once another file/dir is loaded in the same parent dir */
 
 	return dir;
 
@@ -214,22 +231,20 @@ error:
 	return NULL;
 }
 
-int ba_extract(BoxArchive *arch, char *path, char *dest)
+int ba_extract(BoxArchive *arch, ba_Entry *file_entry, char *dest)
 {
-	/* What do you *think* an extract function would do? */
+	check(file_entry, "Null-pointer given to ba_extract().");
 
-	/* Get the struct with the metadata of the file */
-	ba_Entry* file_meta = bael_get(arch->entry_list, path);
-
-	check(file_meta, "File at '%s' not found.", path);
+	fsize_t file_size = file_entry->file_data->__size;
 
 	/* Go to the start of the file in the data chunk */
-	fseek(arch->file, P_FILE_DATA + strlen(arch->header) + file_meta->__start, SEEK_SET);
+	fseek(arch->file, P_FILE_DATA + strlen(arch->header) + file_entry->file_data->__start, SEEK_SET);
 
 	/* Open the file to write to */
 	FILE* out_file = fopen(dest, "w+");
+	check(out_file, "File at \"%s\" could not be opened for writing.", dest);
 
-	for (fsize_t offset = 0; offset < file_meta->__size; offset++)
+	for (fsize_t offset = 0; offset < file_size; offset++)
 	{
 		/* Write each byte out to the file */
 		fputc(fgetc(arch->file), out_file);
@@ -244,7 +259,7 @@ error:
 uint8_t ba_get_format(BoxArchive *arch)
 {
 	/* If the file is not a BOX archive, *
-	 * 0 will be returned				 */
+	 * 0 will be returned.				 */
 
 	check(arch,       "Null-pointer given to ba_get_format().");
 	check(arch->file, "Entry not open!");
@@ -270,6 +285,9 @@ error:
 
 hdrlen_t __ba_get_hdrlen(FILE* file)
 {
+	/* Returns the length (in bytes)	*
+	 * of the XML header.				*/
+
 	check(file, "Entry not open!");
 
 	/* Go to the two-byte header length field */
@@ -292,6 +310,9 @@ error:
 
 char* ba_get_header(BoxArchive *arch)
 {
+	/* Returns a copy of the 	*
+	 * archive's XML header.	*/
+
 	check(arch, "[ERROR] Null-pointer given to ba_get_header().");
 
 	return strdup(arch->header);
@@ -302,6 +323,9 @@ error:
 
 char* __ba_load_header(FILE* file)
 {
+	/* Loads the XML header from the 	*
+	 * given .box file into memory.		*/
+
 	check(file, "[ERROR] Null-pointer given to __ba_load_header().");
 
 	/* Get the header length and allocate enough memory to copy it in to */
@@ -327,6 +351,9 @@ error:
 
 void ba_close(BoxArchive *arch)
 {
+	/* Frees a BoxArchive struct,	*
+	 * and its contents.			*/
+
 	if (! arch)
 	{
 		log_err("Null-pointer given to ba_close().\n");
@@ -343,29 +370,6 @@ void ba_close(BoxArchive *arch)
 
 		free(arch);
 	}
-}
-
-void __ba_cleanup(BoxArchive *arch)
-{
-	check(arch, "Null-pointer given to __ba_cleanup().");
-error:
-
-	/* Free all elments on heap */
-	if (arch->loc)
-		free(arch->loc);
-	if (arch->header)
-		free(arch->header);
-
-	if (arch->file)
-	{
-		fclose(arch->file);
-	}
-	else
-	{
-		log_warn("Could not close archive; archive not open.");
-	}
-
-	free(arch);
 }
 
 /* Similair to fgets(), but doesn't terminate on \n or \0 */

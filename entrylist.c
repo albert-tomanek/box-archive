@@ -2,21 +2,19 @@
 #include <stdlib.h>
 
 #include "dbg.h"
+#include "file.h"
 #include "entry.h"
 #include "entrylist.h"
 
 /* Private stuff */
 
-ba_EntryList* __bael_getlast(ba_EntryList *first);
+ba_Entry* __bael_getlast(ba_Entry *first);
 
 /*  */
 
-void bael_add(ba_EntryList **first_entry, ba_Entry *entry)
+void bael_add(ba_Entry **first_entry, ba_Entry *new_entry)
 {
-	ba_EntryList *new_entry = malloc(sizeof(ba_EntryList));
-
 	new_entry->next  = NULL;
-	new_entry->entry = entry;
 
 	if (*first_entry == NULL)
 	{
@@ -31,20 +29,21 @@ void bael_add(ba_EntryList **first_entry, ba_Entry *entry)
 	}
 }
 
-void bael_free(ba_EntryList **first_entry)	/* Double-pointer because we will be changing the original pointer to NULL */
+void bael_free(ba_Entry **first_entry)	/* Double-pointer because we will be changing the original pointer to NULL */
 {
-	ba_EntryList *current_entry = *first_entry;
-	ba_EntryList *next;
+	ba_Entry *current_entry = *first_entry;
+	ba_Entry *next;
 
 	if (! current_entry)		/* In case first_entry is NULL or we are on the last entry */
 		return;
 
-	while(current_entry)
+	while (current_entry)
 	{
 		next = current_entry->next;
 
-		ba_entry_free(current_entry->entry);	/* Free the ba_Entry struct that it points to. */
-		free         (current_entry);
+		if (current_entry->file_data)		ba_file_free(&(current_entry->file_data));
+		if (current_entry->child_entries)	bael_free(   &(current_entry->child_entries));
+		ba_entry_free(&current_entry);	/* Free the ba_Entry struct that it points to. */
 
 		current_entry = next;
 	}
@@ -54,10 +53,10 @@ void bael_free(ba_EntryList **first_entry)	/* Double-pointer because we will be 
 	return;
 }
 
-int bael_count(ba_EntryList *first)
+int bael_count(ba_Entry *first)
 {
 	int count = 0;
-	ba_EntryList *current = first;
+	ba_Entry *current = first;
 
 	while (current)
 	{
@@ -68,15 +67,15 @@ int bael_count(ba_EntryList *first)
 	return count;
 }
 
-ba_Entry* bael_get(ba_EntryList *first_entry, char *path)
+ba_Entry* bael_get(ba_Entry *first_entry, char *path)
 {
-	ba_EntryList* current = first_entry;
+	ba_Entry* current = first_entry;
 
 	while (current)
 	{
-		if (! strcmp(path, current->entry->path))
+		if (! strcmp(path, current->path))
 		{
-			return current->entry;
+			return current;
 		}
 
 		current = current->next;
@@ -85,11 +84,11 @@ ba_Entry* bael_get(ba_EntryList *first_entry, char *path)
 	return NULL;
 }
 
-ba_EntryList* __bael_getlast(ba_EntryList *first)
+ba_Entry* __bael_getlast(ba_Entry *first)
 {
 	check(first, "Null pointer passed to __bael_getlast()");
 
-	ba_EntryList *current = first;
+	ba_Entry *current = first;
 
 	while (current->next)
 	{
