@@ -37,9 +37,7 @@
   void 		ba_debug(BoxArchive *arch, uint8_t debug);	/* Toggle debug output */
 
   char*  	ba_get_header(BoxArchive *arch);			/* Returns pointer to heap; don't forget to free() it */
-  #define 	ba_gethdr(A)	ba_get_header(A)
 
   uint8_t 	ba_get_format(BoxArchive *arch);     /* Returns the format version of the given archive, and 0 if the format is invalid.*/
-  #define 	ba_getfmt(A)	ba_get_format(A)
 
 #endif
