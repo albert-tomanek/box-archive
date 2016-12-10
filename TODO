@@ -1,0 +1,5 @@
+ - Implement ba_get() to get a file by its path
+ - Implement ba_add(), and other functions to do with the entry tree.
+ - Remove the need for ba_extract() to be given a pointer to BoxArchive *arch?
+ - ba_extract() from buffer rather than file, if buffer is existent.
+ - Get rid of getopt(), and implement 7z-style syntax. 
