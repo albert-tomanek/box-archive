@@ -9,6 +9,7 @@
 #include "box_archive.h"
 #include "entrylist.h"
 #include "entry.h"
+#include "dupcat.h"
 #include "positions.h"
 #include "ints.h"
 #include "types.h"
@@ -25,7 +26,6 @@ ba_Entry* __ba_get_dir_metadata(ezxml *dir_node, ba_Entry *parent_dir);
 char*     __ba_load_header(FILE* file);
 hdrlen_t  __ba_get_hdrlen(FILE* file);
 
-char* __dupcat(char *str1, char *str2, char *str3);
 void  __fgetstrn(char *dest, int length, FILE* file);
 
 /* Library functions */
@@ -179,7 +179,7 @@ ba_Entry* __ba_get_file_metadata(ezxml *file_node, ba_Entry *parent_dir)
 	 * and puts it into a ba_Entry and ba_File struct.	*/
 
 	char *joint_file_name;
-	joint_file_name = __dupcat( parent_dir ? parent_dir->path : "" , (const char*) ezxml_attr(file_node, "name"), "");
+	joint_file_name = dupcat( parent_dir ? parent_dir->path : "" , (const char*) ezxml_attr(file_node, "name"), "");
 
 	ba_Entry *file_entry = malloc(sizeof(ba_Entry));	/* The entry used to hold the file's metadata */
 	ba_File  *file_data  = malloc(sizeof(ba_File));		/* The struct used to hold the file's position in the box archive, and a buffer of the contents */
@@ -209,7 +209,7 @@ ba_Entry* __ba_get_dir_metadata(ezxml *dir_node, ba_Entry *parent_dir)
 	 * and puts it into a ba_Entry struct.						*/
 
 	char *joint_dir_name;
-	joint_dir_name = __dupcat( parent_dir ? parent_dir->path : "", (const char*) ezxml_attr(dir_node, "name"), BA_SEP);
+	joint_dir_name = dupcat( parent_dir ? parent_dir->path : "", (const char*) ezxml_attr(dir_node, "name"), BA_SEP);
 
 	ba_Entry *dir = malloc(sizeof(ba_Entry));
 
@@ -379,15 +379,4 @@ void __fgetstrn(char *dest, int length, FILE* file)
 	{
 		dest[i] = fgetc(file);
 	}
-}
-
-char* __dupcat(char *str1, char *str2, char *str3)
-{
-	/* Like strcat, but makes a copy of the text */
-	char *out;
-
-	out = calloc( strlen(str1)+strlen(str2)+strlen(str3)+1, sizeof(char));
-	sprintf(out, "%s%s%s", str1, str2, str3);
-
-	return out;
 }

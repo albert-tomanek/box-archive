@@ -36,6 +36,6 @@
 
 #if defined(_WIN32) || defined(WIN32)
 
-/* Windows sipport not implemented yet */
+/* Windows support not implemented yet */
 
 #endif
