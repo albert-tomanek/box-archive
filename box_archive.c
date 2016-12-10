@@ -22,6 +22,7 @@ void      __ba_load_dir_tree(char *orig_header, ba_Entry **first_entry);
 void      __ba_process_xml_dir(ezxml *parent_xml, ba_Entry **first_entry, ba_Entry *parent_dir);	/* parent_dir=NULL if toplevel dir */
 ba_Entry* __ba_get_file_metadata(ezxml *file_node, ba_Entry *parent_dir);
 ba_Entry* __ba_get_dir_metadata(ezxml *dir_node, ba_Entry *parent_dir);
+ba_Entry* __ba_get_rec_func(ba_Entry *first_entry, char *path);
 
 char*     __ba_load_header(FILE* file);
 hdrlen_t  __ba_get_hdrlen(FILE* file);
@@ -105,6 +106,42 @@ ba_Entry* ba_get_entries(BoxArchive *arch)
 	return arch->entry_list;	/* This is the real thing, not a copy, so be careful with it */
 
 error:
+	return NULL;
+}
+
+ba_Entry* ba_get(BoxArchive *arch, char *path)
+{
+	check(arch, "Null pointer given for BoxArchive *arch to ba_get().");
+
+	return __ba_get_rec_func(arch->entry_list, path);
+
+error:
+	return NULL;
+}
+
+ba_Entry* __ba_get_rec_func(ba_Entry *first_entry, char *path)
+{
+	if (! first_entry)	return NULL;
+
+	ba_Entry *current = first_entry;
+
+	while (current)
+	{
+		if (! strcmp(current->path, path))		/* This works whether it's a file, or a direcotry */
+		{
+			return current;
+		}
+
+		if (current->type == ba_EntryType_DIR)
+		{
+			ba_Entry *subdir = __ba_get_rec_func(current->child_entries, path);
+
+			if (subdir != NULL)	return subdir;
+		}
+
+		current = current->next;
+	}
+
 	return NULL;
 }
 
@@ -299,9 +336,6 @@ hdrlen_t __ba_get_hdrlen(FILE* file)
 
 	hdrlen_t length = cvt8to16(byte1, byte2);	/* function from ints.h */
 
-	debug("HDRLEN bytes: %02X %02X", byte1, byte2);
-	debug("XML header length = %d bytes", length);
-
 	return length;
 
 error:
@@ -333,8 +367,6 @@ char* __ba_load_header(FILE* file)
 
 	/* Go to the header */
 	fseek(file, P_HEADER, SEEK_SET);
-
-	debug("XML header starts at offset %d from start of file.", P_HEADER);
 
 	char* header = calloc(hdr_length+1, sizeof(char));	/* +1 for the null-byte */
 

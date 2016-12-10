@@ -11,3 +11,13 @@ void ba_entry_free(ba_Entry **entry)
 	free((*entry));
 	*entry = NULL;
 }
+
+char* ba_entry_nice_type(enum ba_EntryType type)
+{
+	/* returns the type of entry as text */
+
+	if (type == ba_EntryType_FILE)	return "File";
+	if (type == ba_EntryType_DIR)	return "Directory";
+
+	return "Undefined";
+}

@@ -30,7 +30,8 @@
 
   typedef struct ba_Entry ba_Entry;
 
-  /* A free function */
-  void ba_entry_free(ba_Entry **entry);
+  /* Functions */
+  void  ba_entry_free(ba_Entry **entry);
+  char* ba_entry_nice_type(enum ba_EntryType type);
 
 #endif

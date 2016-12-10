@@ -18,6 +18,7 @@ int main (int argc, char *argv[])
 	char  arg;
 	char *dest = NULL;	/* Where to extract from */
 	char *src  = NULL;	/* Where to get files from */
+	char *path = NULL;	/* The path of a file within the archive */
 
 	enum Job job;
 
@@ -27,7 +28,7 @@ int main (int argc, char *argv[])
 		return 0;
 	}
 
-	while ((arg = getopt(argc, argv, "dlc:x:f:vhTH")) != -1)
+	while ((arg = getopt(argc, argv, "lc:x:f:d:vhTH")) != -1)
 	{
 	switch (arg)
 	{
@@ -58,6 +59,13 @@ int main (int argc, char *argv[])
 		case 'l':
 			job = LIST;
 		break;
+		case 'd':
+		{
+			path = strdup(optarg);
+			job  = DETAILS;
+
+			break;
+		}
 		case 'c':
 		{
 			src = strdup(optarg);
@@ -132,6 +140,43 @@ int main (int argc, char *argv[])
 			break;
 		}
 
+		case DETAILS:
+		{
+			ba_Entry *entry = ba_get(archive, path);
+
+			if (! entry)
+			{
+				fprintf(stderr, "Entry not found.\n");
+				break;
+			}
+
+			printf("Type:\t%s\n", ba_entry_nice_type(entry->type) );
+			printf("Name:\t%s\n", entry->name);
+			printf("Path:\t%s\n", entry->path);
+
+			printf("\n");
+
+			if (entry->type == ba_EntryType_FILE && entry->file_data != NULL)
+			{
+				printf("Start position:\t%lu\n", entry->file_data->__start);
+				printf("Size (bytes):\t%lu\n",   entry->file_data->__size);
+
+				printf("\n");
+			}
+
+			if (entry->type == ba_EntryType_DIR  && entry->child_entries != NULL)
+			{
+				printf("Contents:\t");
+				for (ba_Entry *current = entry->child_entries; current != NULL; current = current->next)
+				{
+					printf("%s\t", current->name);
+				}
+				printf("\n");
+			}
+
+			break;
+		}
+
 		case GET_FORMAT:
 		{
 			if (! archive) break;
@@ -157,13 +202,19 @@ int main (int argc, char *argv[])
 	}
 
 	if (archive)	ba_close(archive);
+
 	if (dest)		free(dest);
+	if (src)		free(src);
+	if (path)		free(path);
 
 	return 0;
 
 error:
 	if (archive)	ba_close(archive);
+
 	if (dest)		free(dest);
+	if (src)		free(src);
+	if (path)		free(path);
 
 	return 1;
 }
@@ -223,6 +274,9 @@ void print_opt_err(char optopt)
 	{
 	case 'f':
 		fprintf(stderr, "[ERROR] Invalid '-f' argument. Use: -f <file> \n");
+	break;
+	case 'd':
+		fprintf(stderr, "[ERROR] Invalid '-d' argument. Use: -d <path in archive> \n");
 	break;
 	case 'x':
 		fprintf(stderr, "[ERROR] Invalid '-x' argument. Use: -x <destination> \n");

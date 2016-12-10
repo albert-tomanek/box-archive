@@ -32,9 +32,9 @@
 
   ba_Entry*	ba_get_entries(BoxArchive *arch);	/* Returns a pointer to the archive's entry tree */
 
-  int 		ba_extract(BoxArchive *arch, ba_Entry *file_entry, char *dest);		/* Extract the file at the given path in the given archive, to the given place in the filesystem. Returns 1 if an error occured. */
+  ba_Entry* ba_get(BoxArchive *arch, char *path);
 
-  void 		ba_debug(BoxArchive *arch, uint8_t debug);	/* Toggle debug output */
+  int 		ba_extract(BoxArchive *arch, ba_Entry *file_entry, char *dest);		/* Extract the file at the given path in the given archive, to the given place in the filesystem. Returns 1 if an error occured. */
 
   char*  	ba_get_header(BoxArchive *arch);			/* Returns pointer to heap; don't forget to free() it */
 
