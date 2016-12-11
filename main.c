@@ -19,7 +19,8 @@ int main (int argc, char *argv[])
 	char *dest = NULL;	/* Where to extract from */
 	char *src  = NULL;	/* Where to get files from */
 	char *path = NULL;	/* The path of a file within the archive */
-
+	char *start_entry_path= NULL;
+	ba_Entry *start_entry = NULL;	/* This is the entry which we work with. Unless the '-F' flag is used, this will be archive->entry_list. */
 	enum Job job;
 
 	if (argc < 2)
@@ -42,7 +43,7 @@ int main (int argc, char *argv[])
 		return 0;
 	}
 
-	while ((arg = getopt(argc, argv, "lc:x:f:d:TH")) != -1)
+	while ((arg = getopt(argc, argv, "lc:x:f:F:d:TH")) != -1)
 	{
 	switch (arg)
 	{
@@ -85,11 +86,33 @@ int main (int argc, char *argv[])
 
 			break;
 		}
+		case 'F':
+		{
+			start_entry_path = strdup(optarg);
+			break;
+		}
 
 		case '?':
-			print_opt_err(optopt);
+		default:
+			print_opt_err(arg);
 		break;
 	}
+	}
+
+	if (start_entry_path)
+	{
+		ba_Entry *start_entry_orig = ba_get(archive, start_entry_path);
+		if (! start_entry_orig)	fprintf(stderr, "Entry not found.\n");
+
+		/* Sorry, not the nicest way to do things... */                                   /* Warning kids, playing with memory is risky, and could burn your house down, don't try this at home ;-) */
+
+		start_entry = malloc(sizeof(ba_Entry));
+		memcpy(start_entry, start_entry_orig, sizeof(ba_Entry));
+		start_entry->next = NULL;									/* We set ->next to NULL, to prevent jobs being done simply on a branch of the tree, but on an entry and it's children only. */
+	}
+	else
+	{
+		start_entry = ba_get_entries(archive);	/* This just gives us archive->entry_list */
 	}
 
 	/* Now do the specified job */
@@ -123,7 +146,7 @@ int main (int argc, char *argv[])
 		{
 			if (! archive) break;
 
-			ba_Entry *first_entry = ba_get_entries(archive);
+			ba_Entry *first_entry = start_entry;
 			check(first_entry, "Error getting entries.");
 
 			rec_extract_func(archive, first_entry, dest);	/* Run our recursive function which goes through each direcotry			*
@@ -136,7 +159,7 @@ int main (int argc, char *argv[])
 		{
 			if (! archive) break;
 
-			ba_Entry *first_entry = ba_get_entries(archive);
+			ba_Entry *first_entry = start_entry;
 
 			check(first_entry, "Error getting entries.");
 
@@ -280,6 +303,9 @@ void print_opt_err(char optopt)
 	case 'f':
 		fprintf(stderr, "[ERROR] Invalid '-f' argument. Use: -f <file> \n");
 	break;
+	case 'F':
+		fprintf(stderr, "[ERROR] Invalid '-F' argument. Use: -F <path in archive> \n");
+	break;
 	case 'd':
 		fprintf(stderr, "[ERROR] Invalid '-d' argument. Use: -d <path in archive> \n");
 	break;
@@ -314,8 +340,11 @@ void help(char *progname)
 	printf("   -H			Print the header XML of an archive.\n");
 	printf("   -T			Print the Type/version of an archive.\n");
 	printf("   -l			List the files in the archive.\n");
+	printf("   -f <arch>	Use this archive file.\n");
 	printf("   -x <dest>	Extract the files to the given destination.\n");
 	printf("   -c <src>		Create an archive from the given directory.\n");
+	printf("   -d <path>	Show a file's details.\n");
+	printf("   -F <path>	Work only with this file in the archive.\n");
 	printf(" \n");
 	printf("   -v			Print the archiver's version.\n");
 	printf("   -h			Print this help text.\n");

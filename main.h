@@ -4,7 +4,7 @@
 
   #include "box_archive.h"
 
-  #define BOX_ARCHIVER_VERSION "v0.01 Dev Alpha"
+  #define BOX_ARCHIVER_VERSION "v0.02 Dev Alpha"
   #define BOX_ARCHIVER_LICENSE "GPL"
 
   enum Job {
