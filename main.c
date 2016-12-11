@@ -28,19 +28,24 @@ int main (int argc, char *argv[])
 		return 0;
 	}
 
-	while ((arg = getopt(argc, argv, "lc:x:f:d:vhTH")) != -1)
+	if (argc == 2)
+	{
+		if (! strcmp(argv[1], "-h") || ! strcmp(argv[1], "--help"))
+		{
+			help(argv[0]);
+		}
+		else if (! strcmp(argv[1], "-v") || ! strcmp(argv[1], "--version"))
+		{
+			version();
+		}
+
+		return 0;
+	}
+
+	while ((arg = getopt(argc, argv, "lc:x:f:d:TH")) != -1)
 	{
 	switch (arg)
 	{
-		case 'h':
-			help();
-			return 0;
-		break;
-		case 'v':
-			version();
-			return 0;
-		break;
-
 		/* Compulsory args */
 		case 'f':					/* File */
 		{
@@ -298,12 +303,12 @@ void version()
 	printf("\t%s\n", BOX_ARCHIVER_VERSION);
 }
 
-void help()
+void help(char *progname)
 {
 	printf(" The BOX archiver.\n");
 	printf(" \n");
 	printf(" Format:\n");
-	printf("   box [-hvl] [Argument params] -f <BOX archive>\n");
+	printf("   %s [-hvl] [Argument params] -f <BOX archive>\n", progname);
 	printf(" \n");
 	printf(" Arguments:\n");
 	printf("   -H			Print the header XML of an archive.\n");

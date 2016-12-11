@@ -18,7 +18,7 @@
   };
 
   void version();
-  void help();
+  void help(char *progname);
 
   void print_opt_err(char optopt);
   void rec_list_func    (ba_Entry *first_entry);
