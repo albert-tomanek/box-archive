@@ -18,7 +18,7 @@ int main (int argc, char *argv[])
 	char  arg;
 	char *dest = NULL;	/* Where to extract from */
 	char *src  = NULL;	/* Where to get files from */
-	char *path = NULL;	/* The path of a file within the archive */
+	char *path = NULL;	/* The path of a single file within the archive */
 	char *start_entry_path= NULL;
 	ba_Entry *start_entry = NULL;	/* This is the entry which we work with. Unless the '-F' flag is used, this will be archive->entry_list. */
 	enum Job job;
@@ -99,6 +99,13 @@ int main (int argc, char *argv[])
 	}
 	}
 
+	/* Create an archive if it has not been created yet */
+	if (! archive)
+	{
+		archive = ba_new();
+	}
+
+	/* Intialise the start_entry pointer */
 	if (start_entry_path)
 	{
 		ba_Entry *start_entry_orig = ba_get(archive, start_entry_path);
@@ -120,27 +127,11 @@ int main (int argc, char *argv[])
 	switch (job)
 	{
 		case CREATE:
-		/*{
-			archive = ba_new();
-			check(archive, "Error creating new archive.");
-
-			ba_EntryList *entry = NULL;
-
-			entry = ba_getdir(src);
-
-			while (entry)
-			{
-				if (entry->entry->type == ba_EntryType_FILE)
-				{
-					/ Add the current file to the archve /
-					ba_add(archive, entry->entry);
-				}
-
-				entry = entry->next;
-			}
+		{
+			ba_getdir(src, &(archive->entry_list));
 
 			break;
-		}*/
+		}
 
 		case EXTRACT:
 		{
@@ -276,7 +267,7 @@ void rec_extract_func (BoxArchive *arch, ba_Entry *first_entry, char *dest)
 
 	while (current)
 	{
-		out_name = dupcat(dest, (dest[strlen(dest)-1] == BA_SEP[0] ? "" : BA_SEP), current->path);		/* The tertiary operator is used to avoid things like extracting to '/tmp//test.txt' when extracting to '/tmp/' */
+		out_name = dupcat(dest, (dest[strlen(dest)-1] == BA_SEP[0] ? "" : BA_SEP), current->path, "");		/* The tertiary operator is used to avoid things like extracting to '/tmp//test.txt' when extracting to '/tmp/' */
 
 		printf("%s\n", out_name);
 

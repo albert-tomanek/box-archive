@@ -9,6 +9,7 @@
   #include "file.h"
 
   enum ba_EntryType {
+	  be_EntryType_UNSPECIFIED = 0,
 	  ba_EntryType_FILE,
 	  ba_EntryType_DIR
   };
@@ -17,8 +18,8 @@
 	  enum  ba_EntryType type;
 
 	  /* Metadata */
-	  char *path;		/* The full path (eg. "/tmp/myProg/file.dat"). WILL contain a '/' at the end if it is a directory.	*/
-	  char *name;		/* The file name (eg. "file.dat")				*/
+	  char *path;		/* The full path (eg. "/tmp/myProg/file.dat"). WILL contain a '/' at the end if it is a directory. The string will be on heap and therefore will be freed when ba_entry_free() is called. */
+	  char *name;		/* The file name (eg. "file.dat"). Will also be on heap.	*/
 
 	  /* Pointers */
 	  struct ba_File  *file_data;		/* Start and length of the file. NULL if the entry is not a file */
@@ -31,7 +32,7 @@
   typedef struct ba_Entry ba_Entry;
 
   /* Functions */
-  void  ba_entry_free(ba_Entry **entry);
+  void  ba_entry_free(ba_Entry *entry);
   char* ba_entry_nice_type(enum ba_EntryType type);
 
 #endif
