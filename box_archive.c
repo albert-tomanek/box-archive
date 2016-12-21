@@ -18,11 +18,13 @@ typedef struct ezxml ezxml;		/* Not implemented in EzXML for some reason... */
 
 /* Private stuff */
 
-void      __ba_load_dir_tree(char *orig_header, ba_Entry **first_entry);
-void      __ba_process_xml_dir(ezxml *parent_xml, ba_Entry **first_entry, ba_Entry *parent_dir);	/* parent_dir=NULL if toplevel dir */
+void      __ba_load_dir_tree	(char *orig_header, ba_Entry **first_entry);
+void      __ba_process_xml_dir	(ezxml *parent_xml, ba_Entry **first_entry, ba_Entry *parent_dir);	/* parent_dir=NULL if toplevel dir */
 ba_Entry* __ba_get_file_metadata(ezxml *file_node, ba_Entry *parent_dir);
-ba_Entry* __ba_get_dir_metadata(ezxml *dir_node, ba_Entry *parent_dir);
-ba_Entry* __ba_get_rec_func(ba_Entry *first_entry, char *path);
+ba_Entry* __ba_get_dir_metadata	(ezxml *dir_node, ba_Entry *parent_dir);
+ba_Entry* __ba_get_rec_func		(ba_Entry *first_entry, char *path);
+void      __ba_dir_entry_to_xml	(ezxml *parent_node, ba_Entry *first_entry);
+void      __ba_create_header	(BoxArchive *arch);
 
 char*     __ba_load_header(FILE* file);
 hdrlen_t  __ba_get_hdrlen(FILE* file);
@@ -48,6 +50,20 @@ BoxArchive* ba_new()
 
 error:
 	return NULL;
+}
+
+void ba_save(BoxArchive *arch, char *loc)
+{
+	check(arch, "Null-pointer given to ba_save().");
+
+	__ba_create_header(arch);
+
+	printf("%s\n", arch->header);
+
+	return;
+
+error:
+	return;
 }
 
 BoxArchive* ba_open(char *loc)
@@ -84,63 +100,6 @@ BoxArchive* ba_open(char *loc)
 error:
 
 	ba_close(arch);
-
-	return NULL;
-}
-
-void ba_add(BoxArchive *arch, ba_Entry *entry)
-{
-	check(arch, "Null pointer given for BoxArchive *arch to ba_add().");
-	check(arch, "Null pointer given for ba_Entry *entry to ba_add().");
-
-	/* YET TO BE IMPLEMENTED */
-
-error:
-	return;
-}
-
-ba_Entry* ba_get_entries(BoxArchive *arch)
-{
-	check(arch, "Null pointer given to ba_get_entries().");
-
-	return arch->entry_list;	/* This is the real thing, not a copy, so be careful with it */
-
-error:
-	return NULL;
-}
-
-ba_Entry* ba_get(BoxArchive *arch, char *path)
-{
-	check(arch, "Null pointer given for BoxArchive *arch to ba_get().");
-
-	return __ba_get_rec_func(arch->entry_list, path);
-
-error:
-	return NULL;
-}
-
-ba_Entry* __ba_get_rec_func(ba_Entry *first_entry, char *path)
-{
-	if (! first_entry)	return NULL;
-
-	ba_Entry *current = first_entry;
-
-	while (current)
-	{
-		if (! strcmp(current->path, path))		/* This works whether it's a file, or a direcotry */
-		{
-			return current;
-		}
-
-		if (current->type == ba_EntryType_DIR)
-		{
-			ba_Entry *subdir = __ba_get_rec_func(current->child_entries, path);
-
-			if (subdir != NULL)	return subdir;
-		}
-
-		current = current->next;
-	}
 
 	return NULL;
 }
@@ -291,6 +250,121 @@ int ba_extract(BoxArchive *arch, ba_Entry *file_entry, char *dest)
 
 error:
 	return 1;
+}
+
+void ba_add(BoxArchive *arch, ba_Entry *entry)
+{
+	check(arch, "Null pointer given for BoxArchive *arch to ba_add().");
+	check(arch, "Null pointer given for ba_Entry *entry to ba_add().");
+
+	/* YET TO BE IMPLEMENTED */
+
+error:
+	return;
+}
+
+void __ba_create_header(BoxArchive *arch)
+{
+	check(arch, "Null-pointer given to ");
+
+	ezxml *xml  = ezxml_new("header");
+	check(xml, "Error creating XML header: %s", ezxml_error(xml));
+
+	__ba_dir_entry_to_xml(xml, arch->entry_list);
+
+	if (arch->header)	free(arch->header);
+	arch->header = 	ezxml_toxml(xml);
+
+	return;
+
+error:
+	return;
+}
+
+void __ba_dir_entry_to_xml(ezxml *parent_node, ba_Entry *first_entry)
+{
+	check(parent_node, "Null-pointer given to __ba_dir_entry_to_xml() for ezxml *parent_node.");
+	check(parent_node, "Null-pointer given to __ba_dir_entry_to_xml() for ba_Entry *first_entry.");
+
+	ezxml	 *current_node = NULL;
+	ba_Entry *current      = first_entry;
+
+	char size_attr_str [BA_INTLEN];
+	char start_attr_str[BA_INTLEN];
+
+	while (current)
+	{
+		current_node = ezxml_add_child(parent_node, ba_entry_xml_type(current->type), 0);
+		ezxml_set_attr(current_node, "name", current->name);
+
+		if (current->type == ba_EntryType_FILE)
+		{
+			if (current->file_data)
+			{
+				snprintf(size_attr_str,  BA_INTLEN, "%llu", (long long unsigned) current->file_data->__size);
+				snprintf(start_attr_str, BA_INTLEN, "%llu", (long long unsigned) current->file_data->__start);
+				ezxml_set_attr(current_node, "size",  size_attr_str );
+				ezxml_set_attr(current_node, "start", start_attr_str );
+			}
+		}
+		else if (current->type == ba_EntryType_DIR)
+		{
+			__ba_dir_entry_to_xml(current_node, current->child_entries);
+		}
+
+		current = current->next;
+	}
+
+	return;
+
+error:
+	return;
+}
+
+ba_Entry* ba_get_entries(BoxArchive *arch)
+{
+	check(arch, "Null pointer given to ba_get_entries().");
+
+	return arch->entry_list;	/* This is the real thing, not a copy, so be careful with it */
+
+error:
+	return NULL;
+}
+
+ba_Entry* ba_get(BoxArchive *arch, char *path)
+{
+	check(arch, "Null pointer given for BoxArchive *arch to ba_get().");
+
+	return __ba_get_rec_func(arch->entry_list, path);
+
+error:
+	return NULL;
+}
+
+ba_Entry* __ba_get_rec_func(ba_Entry *first_entry, char *path)
+{
+	if (! first_entry)	return NULL;
+
+	ba_Entry *current = first_entry;
+
+	while (current)
+	{
+		if (! strcmp(current->path, path))		/* This works whether it's a file, or a direcotry */
+		{
+			return current;
+		}
+
+		if (current->type == ba_EntryType_DIR)
+		{
+			ba_Entry *subdir = __ba_get_rec_func(current->child_entries, path);
+
+			if (subdir != NULL)	return subdir;
+		}
+
+		current = current->next;
+	}
+
+	return NULL;
 }
 
 uint8_t ba_get_format(BoxArchive *arch)

@@ -12,7 +12,7 @@ void ba_entry_free(ba_Entry *entry)
 	/* *entry = NULL; */
 }
 
-char* ba_entry_nice_type(enum ba_EntryType type)
+const char* ba_entry_nice_type(enum ba_EntryType type)
 {
 	/* Returns the type of entry as text.					*
 	 * Note: These are constants, and not on the stack,		*
@@ -23,4 +23,14 @@ char* ba_entry_nice_type(enum ba_EntryType type)
 	if (type == ba_EntryType_DIR)	return "Directory";
 
 	return "Undefined";
+}
+
+const char* ba_entry_xml_type(enum ba_EntryType type)
+{
+	/* Returns the type of entry as the name of its XML tag		*/
+
+	if (type == ba_EntryType_FILE)	return "file";
+	if (type == ba_EntryType_DIR)	return "dir";
+
+	return "entry";
 }

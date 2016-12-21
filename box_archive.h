@@ -9,6 +9,7 @@
 
   #define BA_MAX_VER 1		/* The highest box archive version that the program supports */
   #define BA_SEP "/"		/* The file path separator */
+  #define BA_INTLEN 20      /* The length of temporary char arrays into which int attributes will be written */
 
   #define NODEBUG			/* Stops debug output */
 
@@ -28,6 +29,7 @@
   /* Functions */
   BoxArchive* 	ba_new();
   BoxArchive* 	ba_open(char *loc);           /* The uint8_t is used to store a boolean value */
+  void			ba_save(BoxArchive *arch, char *loc);
   void			ba_close(BoxArchive *arch);
 
   ba_Entry*	ba_get_entries(BoxArchive *arch);	/* Returns a pointer to the archive's entry tree */

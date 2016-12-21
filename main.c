@@ -16,9 +16,10 @@ int main (int argc, char *argv[])
 	BoxArchive *archive = NULL;
 
 	char  arg;
-	char *dest = NULL;	/* Where to extract from */
+	char *dest = NULL;	/* Where to extract to */
 	char *src  = NULL;	/* Where to get files from */
 	char *path = NULL;	/* The path of a single file within the archive */
+	char *boxfile = NULL;
 	char *start_entry_path= NULL;
 	ba_Entry *start_entry = NULL;	/* This is the entry which we work with. Unless the '-F' flag is used, this will be archive->entry_list. */
 	enum Job job;
@@ -50,8 +51,7 @@ int main (int argc, char *argv[])
 		/* Compulsory args */
 		case 'f':					/* File */
 		{
-			char *boxfile = optarg;
-			archive = ba_open(boxfile);
+			boxfile = strdup(optarg);
 			break;
 		}
 
@@ -102,7 +102,14 @@ int main (int argc, char *argv[])
 	/* Create an archive if it has not been created yet */
 	if (! archive)
 	{
-		archive = ba_new();
+		if (job == EXTRACT)
+		{
+			archive = ba_open(boxfile);
+		}
+		else /* if (job == create) */
+		{
+			archive = ba_new();
+		}
 	}
 
 	/* Intialise the start_entry pointer */
@@ -111,7 +118,7 @@ int main (int argc, char *argv[])
 		ba_Entry *start_entry_orig = ba_get(archive, start_entry_path);
 		if (! start_entry_orig)	fprintf(stderr, "Entry not found.\n");
 
-		/* Sorry, not the nicest way to do things... */                                   /* Warning kids, playing with memory is risky, and could burn your house down, don't try this at home ;-) */
+		/* Sorry, not the nicest way to do things... */
 
 		start_entry = malloc(sizeof(ba_Entry));
 		memcpy(start_entry, start_entry_orig, sizeof(ba_Entry));
@@ -128,7 +135,13 @@ int main (int argc, char *argv[])
 	{
 		case CREATE:
 		{
-			ba_getdir(src, &(archive->entry_list));
+			ba_load_fs_tree(src, &(archive->entry_list));
+
+			/*for (;;)
+			{
+			}*/
+
+			ba_save(archive, boxfile);
 
 			break;
 		}
@@ -177,8 +190,8 @@ int main (int argc, char *argv[])
 
 			if (entry->type == ba_EntryType_FILE && entry->file_data != NULL)
 			{
-				printf("Start position:\t%lu\n", entry->file_data->__start);
-				printf("Size (bytes):\t%lu\n",   entry->file_data->__size);
+				printf("Start position:\t%llu\n", (uint64_t) entry->file_data->__start);
+				printf("Size (bytes):\t%llu\n",   (uint64_t) entry->file_data->__size);
 
 				printf("\n");
 			}
@@ -225,6 +238,7 @@ int main (int argc, char *argv[])
 	if (dest)		free(dest);
 	if (src)		free(src);
 	if (path)		free(path);
+	if (boxfile)	free(boxfile);
 
 	return 0;
 
@@ -234,6 +248,7 @@ error:
 	if (dest)		free(dest);
 	if (src)		free(src);
 	if (path)		free(path);
+	if (boxfile)	free(boxfile);
 
 	return 1;
 }

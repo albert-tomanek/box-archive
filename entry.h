@@ -1,6 +1,6 @@
-/* A struct used to hold metadata			*
- * about a filesystem entry (file or dir),	*
- * in a BOX archive.						*/
+ /* A struct used to hold metadata			*
+  * about a filesystem entry (file or dir),	*
+  * in a BOX archive.						*/
 
 #ifndef __BOX_ARCHIVE_ENTRY_H__
   #define __BOX_ARCHIVE_ENTRY_H__
@@ -33,6 +33,7 @@
 
   /* Functions */
   void  ba_entry_free(ba_Entry *entry);
-  char* ba_entry_nice_type(enum ba_EntryType type);
+  const char* ba_entry_nice_type(enum ba_EntryType type);
+  const char* ba_entry_xml_type (enum ba_EntryType type);
 
 #endif

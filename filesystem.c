@@ -44,7 +44,7 @@
 		return;
 	}
 
-	void ba_getdir(char *path, ba_Entry **first_entry)
+	void ba_load_fs_tree(char *path, ba_Entry **first_entry)
 	{
 		/* check(**first_entry, ...)	gave an error for some reason, else I would have used it. */
 
@@ -100,8 +100,6 @@
 				/* Run on the subdirectory */
 				__rec_getdir_func(current->path, &(current->child_entries), current);
 			}
-
-			printf("%s\n", current->path ? current->path : "");
 
 			bael_add(first_entry, current);
 

@@ -27,6 +27,8 @@ void bael_add(ba_Entry **first_entry, ba_Entry *new_entry)
 		/* Add it to the end */
 		__bael_getlast(*first_entry)->next = new_entry;
 	}
+
+	return;
 }
 
 void bael_free(ba_Entry **first_entry)	/* Double-pointer because we will be changing the original pointer to NULL */
