@@ -13,7 +13,7 @@
 	#include <stddef.h>
 	#include <unistd.h>
 	#include <dirent.h>
-	#include <sys/stat.h>	/* For mkdir */
+	#include <sys/stat.h>	/* For mkdir and fstat */
 	#include <sys/types.h>
 
 	/* 'Private' declarations */
@@ -126,6 +126,26 @@
 		if (name_max == -1)         /* Limit not defined, or error */
 			name_max = 255;         /* Take a guess */
 		return offsetof(struct dirent, d_name) + name_max + 1;
+	}
+
+	fsize_t ba_fsize(char *loc)
+	{
+		/* From: http://www.securecoding.cert.org/confluence/plugins/servlet/mobile#content/view/42729539 */
+
+
+		struct stat file_stat;
+
+		/* Ensure that is is a regular file */
+		if ( (stat(loc, &file_stat) != 0) || (!S_ISREG(file_stat.st_mode)) )
+		{
+			log_warn("Filesystem entry \"%s\" is not a file", loc);
+			return 0;
+		}
+
+		return (fsize_t) file_stat.st_size;
+
+	error:
+		return 0;
 	}
 
 #endif

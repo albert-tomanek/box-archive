@@ -9,6 +9,7 @@
 #include "box_archive.h"
 #include "entrylist.h"
 #include "entry.h"
+#include "filesystem.h"
 #include "dupcat.h"
 #include "positions.h"
 #include "ints.h"
@@ -18,13 +19,15 @@ typedef struct ezxml ezxml;		/* Not implemented in EzXML for some reason... */
 
 /* Private stuff */
 
-void      __ba_load_dir_tree	(char *orig_header, ba_Entry **first_entry);
-void      __ba_process_xml_dir	(ezxml *parent_xml, ba_Entry **first_entry, ba_Entry *parent_dir);	/* parent_dir=NULL if toplevel dir */
-ba_Entry* __ba_get_file_metadata(ezxml *file_node, ba_Entry *parent_dir);
-ba_Entry* __ba_get_dir_metadata	(ezxml *dir_node, ba_Entry *parent_dir);
-ba_Entry* __ba_get_rec_func		(ba_Entry *first_entry, char *path);
-void      __ba_dir_entry_to_xml	(ezxml *parent_node, ba_Entry *first_entry);
-void      __ba_create_header	(BoxArchive *arch);
+void      __ba_load_dir_tree	  (char *orig_header, ba_Entry **first_entry);
+void      __ba_process_xml_dir	  (ezxml *parent_xml, ba_Entry **first_entry, ba_Entry *parent_dir);	/* parent_dir=NULL if toplevel dir */
+ba_Entry* __ba_get_file_metadata  (ezxml *file_node, ba_Entry *parent_dir);
+ba_Entry* __ba_get_dir_metadata	  (ezxml *dir_node, ba_Entry *parent_dir);
+ba_Entry* __ba_get_rec_func		  (ba_Entry *first_entry, char *path);
+void      __ba_dir_entry_to_xml	  (ezxml *parent_node, ba_Entry *first_entry);
+void      __ba_create_header	  (BoxArchive *arch);
+void      __ba_load_file_data     (BoxArchive *arch);
+void      __ba_load_dir_file_data (ba_Entry *first_entry, fsize_t *total_size);		/* Sorry for the confusing name -- someone change it, if you come up with a more descriptive one... */
 
 char*     __ba_load_header(FILE* file);
 hdrlen_t  __ba_get_hdrlen(FILE* file);
@@ -45,6 +48,7 @@ BoxArchive* ba_new()
 	arch->header     = NULL;
 	arch->file       = NULL;
 	arch->entry_list = NULL;
+	arch->__data_size= 0;
 
 	return arch;
 
@@ -56,7 +60,9 @@ void ba_save(BoxArchive *arch, char *loc)
 {
 	check(arch, "Null-pointer given to ba_save().");
 
-	__ba_create_header(arch);
+	__ba_load_file_data(arch);	/* Creates a ->file struct for each entry, but doesn't load any files into memory */
+
+	__ba_create_header(arch);	/* Creates an XML header of the archive's structure. */
 
 	printf("%s\n", arch->header);
 
@@ -263,16 +269,75 @@ error:
 	return;
 }
 
+void __ba_load_file_data(BoxArchive *arch)
+{
+	/* Goes through an archive's entry tree, loading 	*
+	 * each file into memory.							*/
+
+	check(arch, "Null-pointer given to __ba_load_file_data().");
+
+	__ba_load_dir_file_data(arch->entry_list, &(arch->__data_size) );
+
+	return;
+
+error:
+	return;
+}
+
+void __ba_load_dir_file_data(ba_Entry *first_entry, fsize_t *total_size)
+{
+	check(total_size, "Null-pointer given to __ba_load_dir_file_data() for int *total_size.");
+
+	if (! first_entry)
+	{
+		/* In case of an empty directory. */
+		return;
+	}
+
+	ba_Entry *current = first_entry;
+
+	while (current)
+	{
+		if (current->type == ba_EntryType_FILE)
+		{
+			current->file_data = calloc(1, sizeof(ba_File));
+			current->file_data->__size  = ba_fsize(current->path);
+			current->file_data->__start = *total_size;
+			current->file_data->__orig_loc = strdup(current->path);
+
+			*total_size += current->file_data->__size;	/* We're not incrementing the pointer; we're incrementeng the actual integer that is pointed to. */
+		}
+		else if (current->type == ba_EntryType_DIR)
+		{
+			/* Directory entries' ->file_data	*
+			 * is a null-pointer.				*/
+
+			__ba_load_dir_file_data(current->child_entries, total_size);
+		}
+
+		current = current->next;
+	}
+
+	return;
+
+error:
+	return;
+}
+
 void __ba_create_header(BoxArchive *arch)
 {
-	check(arch, "Null-pointer given to ");
+	/* This function recursiveley goes through an archive's	*
+	 * entry tree, and creates an XML representation of it,	*
+	 * which arch->header points to.						*/
+
+	check(arch, "Null-pointer given to __ba_create_header().");
 
 	ezxml *xml  = ezxml_new("header");
 	check(xml, "Error creating XML header: %s", ezxml_error(xml));
 
 	__ba_dir_entry_to_xml(xml, arch->entry_list);
 
-	if (arch->header)	free(arch->header);
+	if (arch->header)	free(arch->header);		/* Frees the old header if one exists */
 	arch->header = 	ezxml_toxml(xml);
 
 	return;
@@ -283,6 +348,8 @@ error:
 
 void __ba_dir_entry_to_xml(ezxml *parent_node, ba_Entry *first_entry)
 {
+	/* Recursive function used by __ba_create_header().	*/
+
 	check(parent_node, "Null-pointer given to __ba_dir_entry_to_xml() for ezxml *parent_node.");
 	check(parent_node, "Null-pointer given to __ba_dir_entry_to_xml() for ba_Entry *first_entry.");
 
@@ -301,10 +368,10 @@ void __ba_dir_entry_to_xml(ezxml *parent_node, ba_Entry *first_entry)
 		{
 			if (current->file_data)
 			{
-				snprintf(size_attr_str,  BA_INTLEN, "%llu", (long long unsigned) current->file_data->__size);
-				snprintf(start_attr_str, BA_INTLEN, "%llu", (long long unsigned) current->file_data->__start);
-				ezxml_set_attr(current_node, "size",  size_attr_str );
-				ezxml_set_attr(current_node, "start", start_attr_str );
+				snprintf(size_attr_str,  BA_INTLEN, "%lld", (long long unsigned) current->file_data->__size);
+				snprintf(start_attr_str, BA_INTLEN, "%lld", (long long unsigned) current->file_data->__start);
+				ezxml_set_attr_d(current_node, "size",  size_attr_str );	/* _d calls a wrapper for ezxml_set_attr() that strdup()'s the strings passed to it. */
+				ezxml_set_attr_d(current_node, "start", start_attr_str );
 			}
 		}
 		else if (current->type == ba_EntryType_DIR)

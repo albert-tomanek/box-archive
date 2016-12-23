@@ -18,6 +18,8 @@
 
 	offset_t __size;		/* <- These store the start and size of the file in the data chunk 	*/
 	offset_t __start;		/*    Not to be tampered with by anything else then the ba library, else you'll lose the reference to your file!	*/
+
+	char *__orig_loc;		/* Temporary string to store where the file should be loaded from */
   };
 
   typedef struct ba_File ba_File;

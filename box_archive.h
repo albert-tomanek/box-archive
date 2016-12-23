@@ -21,6 +21,7 @@
 	  FILE *file;
 
 	  ba_Entry *entry_list;		/* The entry tree with file, dirs, and their metadata */
+	  fsize_t  __data_size;		/* The size of the whole data chunk in total. Data chunk doesn't exisi if *entry_list is NULL.*/
   };
 
   typedef struct BoxArchive BoxArchive;
