@@ -135,11 +135,10 @@ int main (int argc, char *argv[])
 	{
 		case CREATE:
 		{
-			ba_load_fs_tree(src, &(archive->entry_list));
+			/* Hopefully the API will provide a nicer way	*
+			 * to do this in the future...					*/
 
-			/*for (;;)
-			{
-			}*/
+			ba_load_fs_tree(src, &(archive->entry_list));
 
 			ba_save(archive, boxfile);
 
@@ -190,8 +189,8 @@ int main (int argc, char *argv[])
 
 			if (entry->type == ba_EntryType_FILE && entry->file_data != NULL)
 			{
-				printf("Start position:\t%llu\n", (uint64_t) entry->file_data->__start);
-				printf("Size (bytes):\t%llu\n",   (uint64_t) entry->file_data->__size);
+				printf("Start position:\t%llu\n", (long long unsigned) entry->file_data->__start);
+				printf("Size (bytes):\t%llu\n",   (long long unsigned) entry->file_data->__size);
 
 				printf("\n");
 			}

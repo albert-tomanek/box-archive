@@ -258,12 +258,56 @@ error:
 	return 1;
 }
 
-void ba_add(BoxArchive *arch, ba_Entry *entry)
+void ba_add(ba_Entry **parent_entry, ba_Entry *add_entry)
 {
-	check(arch, "Null pointer given for BoxArchive *arch to ba_add().");
-	check(arch, "Null pointer given for ba_Entry *entry to ba_add().");
+	/* Note that this function expects that add_entry 	*
+	 * is correctly filled in, otherwise there will be	*
+	 * errors at later stages.							*/
 
-	/* YET TO BE IMPLEMENTED */
+	check(parent_entry, "Null pointer given for ba_Entry **parent_entry to ba_add().");
+	check(add_entry   , "Null pointer given for ba_Entry *add_entry to ba_add().");
+
+	bael_add(&((*parent_entry)->child_entries), add_entry);	/* Sorry about the messy pointer de-referencing...	*/
+
+error:
+	return;
+}
+
+void ba_add_file(ba_Entry **parent_entry, char *file_name, char *loc)
+{
+	check(parent_entry, "Null pointer given for ba_Entry **parent_entry to ba_add_file().");
+
+	ba_Entry *add_entry = malloc(sizeof(ba_Entry));
+
+	add_entry->type       = ba_EntryType_FILE;
+	add_entry->__orig_loc = strdup(loc);
+	add_entry->path       = dupcat((*parent_entry)->path ? (*parent_entry)->path : "", file_name, "", "");
+	add_entry->name       = strdup(file_name);
+	add_entry->file_data  = NULL;
+	add_entry->parent_dir = *parent_entry;	/* Doesn't matter if it's NULL */
+	add_entry->child_entries = NULL;
+
+	bael_add(&((*parent_entry)->child_entries), add_entry);
+
+error:
+	return;
+}
+
+void ba_add_dir(ba_Entry **parent_entry, char *dir_name)
+{
+	check(parent_entry, "Null pointer given for ba_Entry **parent_entry to ba_add_dir().");
+
+	ba_Entry *add_entry = malloc(sizeof(ba_Entry));
+
+	add_entry->type       = ba_EntryType_DIR;
+	add_entry->__orig_loc = NULL;
+	add_entry->path       = dupcat((*parent_entry)->path ? (*parent_entry)->path : "", dir_name, (dir_name[strlen(dir_name)-1] == BA_SEP[0] ? "" : BA_SEP), "");
+	add_entry->name       = strdup(dir_name);
+	add_entry->file_data  = NULL;
+	add_entry->parent_dir = *parent_entry;	/* Doesn't matter if it's NULL */
+	add_entry->child_entries = NULL;		/* For now... */
+
+	bael_add(&((*parent_entry)->child_entries), add_entry);
 
 error:
 	return;
@@ -271,8 +315,9 @@ error:
 
 void __ba_load_file_data(BoxArchive *arch)
 {
-	/* Goes through an archive's entry tree, loading 	*
-	 * each file into memory.							*/
+	/* Goes through an archive's entry tree, 		*
+	 * and creates a ba_File struct for each entry,	*
+	 * containing the file's size, etc.				*/
 
 	check(arch, "Null-pointer given to __ba_load_file_data().");
 
@@ -286,6 +331,8 @@ error:
 
 void __ba_load_dir_file_data(ba_Entry *first_entry, fsize_t *total_size)
 {
+	/* Recursive function used by __ba_load_file_data()	*/
+
 	check(total_size, "Null-pointer given to __ba_load_dir_file_data() for int *total_size.");
 
 	if (! first_entry)
@@ -300,10 +347,19 @@ void __ba_load_dir_file_data(ba_Entry *first_entry, fsize_t *total_size)
 	{
 		if (current->type == ba_EntryType_FILE)
 		{
+			if (! current->__orig_loc)
+			{
+				/* ->__orig_loc is NEEDED so that ba knows 	*
+				 * where to read the source file from when 	*
+				 * creating the archive.					*/
+
+				log_warn("Source file for \"%s\" unspecified. Developer: please call ba_load_fs_tree() or ba_add() before calling ba_save().", current->path);		/* May ba a bit vague to a clueless developer; please improve if you can come up with a better error message... */
+				goto error;
+			}
+
 			current->file_data = calloc(1, sizeof(ba_File));
-			current->file_data->__size  = ba_fsize(current->path);
+			current->file_data->__size  = ba_fsize(current->__orig_loc);
 			current->file_data->__start = *total_size;
-			current->file_data->__orig_loc = strdup(current->path);
 
 			*total_size += current->file_data->__size;	/* We're not incrementing the pointer; we're incrementeng the actual integer that is pointed to. */
 		}

@@ -33,6 +33,9 @@ void bael_add(ba_Entry **first_entry, ba_Entry *new_entry)
 
 void bael_free(ba_Entry **first_entry)	/* Double-pointer because we will be changing the original pointer to NULL */
 {
+	/* Just frees the linked list of entries given to it;	*
+	 * DOES NOT FREE THE WHOLE SUB-TREE.					*/
+
 	ba_Entry *current_entry = *first_entry;
 	ba_Entry *next;
 

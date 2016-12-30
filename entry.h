@@ -17,13 +17,15 @@
   struct ba_Entry {
 	  enum  ba_EntryType type;
 
+	  char *__orig_loc;		/* If this entry is a file, this will contain the location of the original file, so that the ba_save() knows where to read the file's data from when creating the archive. */
+
 	  /* Metadata */
 	  char *path;		/* The full path (eg. "/tmp/myProg/file.dat"). WILL contain a '/' at the end if it is a directory. The string will be on heap and therefore will be freed when ba_entry_free() is called. */
 	  char *name;		/* The file name (eg. "file.dat"). Will also be on heap.	*/
 
 	  /* Pointers */
 	  struct ba_File  *file_data;		/* Start and length of the file. NULL if the entry is not a file */
-	  struct ba_Entry *parent_dir;			/* Pointer to parent directory. NULL if in root */
+	  struct ba_Entry *parent_dir;		/* Pointer to parent directory. NULL if in root */
 	  struct ba_Entry *child_entries;	/* Pointer to the first file in this directory. NULL if this entry is not a directory. */
 
 	  struct ba_Entry *next;				/* Pointer to the next entry */

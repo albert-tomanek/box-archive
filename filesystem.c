@@ -19,7 +19,7 @@
 	/* 'Private' declarations */
 
 	size_t dirent_entry_size(char *path);
-	void __rec_getdir_func(char *path, ba_Entry **first_entry, ba_Entry *parent_entry);
+	void __rec_getdir_func(char *path, char *root_dir_path, ba_Entry **first_entry, ba_Entry *parent_entry);
 
 	/* Functions */
 
@@ -44,31 +44,36 @@
 		return;
 	}
 
-	void ba_load_fs_tree(char *path, ba_Entry **first_entry)
+	void ba_load_fs_tree(char *orig_root_path, ba_Entry **first_entry)
 	{
 		/* check(**first_entry, ...)	gave an error for some reason, else I would have used it. */
 
-		__rec_getdir_func(path, first_entry, NULL);
+		char *root_path = dupcat(orig_root_path, (orig_root_path[strlen(orig_root_path)-1] == BA_SEP[0] ? "" : BA_SEP), "", ""); 	/* just ads a '/' to the end of the root path if it isn't there. Eg. makes '/tmp/test/' from ''/tmp/test'. */
 
+		__rec_getdir_func("", root_path, first_entry, NULL);
+
+		free(root_path);
 		return;
 
 	error:
+		if (root_path)	free(root_path);
 		return;
 	}
 
-	void __rec_getdir_func(char *path, ba_Entry **first_entry, ba_Entry *parent_entry)
+	void __rec_getdir_func(char *path, char *root_path, ba_Entry **first_entry, ba_Entry *parent_entry)		/* 'root_dir_path' is the path of the root of the archive, while 'path' is the path of the current entry in the archive. */
 	{
-		DIR  			*dirent_dir 	= opendir(path);
-		check(dirent_dir, "Error getting contents of '%s'.", path);
+		char *full_path = dupcat(root_path, path, "", "");				/* This is the path of the archive's root directory, + the path of the directory to process.	*/
+		DIR  			 *dirent_dir 	= opendir(full_path);
+		check(dirent_dir != NULL, "Error getting contents of '%s'.", path);
 
 		struct dirent 	*dirent_entry 	= malloc( dirent_entry_size(path) );
 		struct dirent   *dirent_result;	/* Will point to dirent_entry unless we encounter the end of the directory, where it'll be NULL. */
 
 		struct ba_Entry *current;
 
-		while(	readdir_r(dirent_dir, dirent_entry, &dirent_result) == 0
-				&& (dirent_result != NULL) )
-		{
+		while(	readdir_r(dirent_dir, dirent_entry, &dirent_result) == 0		/* NOTE: As of 2016-12-30 (or Lubuntu 16.10), readdir_r seems to be deprecated (see 'man readdir'),	*/
+				&& (dirent_result != NULL) )									/*       but there doesn't appear to be an up-to-date replacement.									*/
+		{																		/*       Someone please update it/contact me if you find the correct and up-to-date way to do this.	*/
 			if (! ( strcmp(dirent_entry->d_name, ".")
 				&&  strcmp(dirent_entry->d_name, "..")))
 			{
@@ -79,40 +84,45 @@
 			current = calloc(1, sizeof(ba_Entry));
 			check(current, "Out of memory.");
 
-			if (dirent_entry->d_type == DT_REG)		/* REGular fule */
+			if (dirent_entry->d_type == DT_REG)		/* REGular file */
 			{
 				current->type = ba_EntryType_FILE;
 				current->name = strdup(dirent_entry->d_name);
-				current->path = dupcat(path, (path[strlen(path)-1] == BA_SEP[0] ? "" : BA_SEP), current->name, "");
+				current->path = dupcat(path, current->name, "", "");
 				current->file_data     = NULL;							/* The file hasn't been added to an archive yet */
 				current->parent_dir    = parent_entry;
 				current->child_entries = NULL;
+				current->__orig_loc    = dupcat(root_path, current->path, "", "");		/* eg. '/tmp/test/' + 'directory/file.dat'. This string us used so that ba_save() knows where to read the source file from when writing to the archive. */
 			}
 			if (dirent_entry->d_type == DT_DIR			/* Directory */ )
 			{
 				current->type = ba_EntryType_DIR;
 				current->name = strdup(dirent_entry->d_name);
-				current->path = dupcat(path, (path[strlen(path)-1] == BA_SEP[0] ? "" : BA_SEP), current->name, BA_SEP);
+				current->path = dupcat(path, current->name, BA_SEP, "");
 				current->file_data     = NULL;							/* The file hasn't been saved in an archive yet */
 				current->parent_dir    = parent_entry;
 				current->child_entries = NULL;
 
 				/* Run on the subdirectory */
-				__rec_getdir_func(current->path, &(current->child_entries), current);
+				__rec_getdir_func(current->path, root_path, &(current->child_entries), current);
 			}
 
-			bael_add(first_entry, current);
+			bael_add(first_entry, current);		/* Add the newly created entry to the entry tree */
 
 			/* Note I'm not doing free(current) here,		*
-			 * Because it is now part of our entry tree!	*/
+			 * because it is now part of our entry tree!	*/
 		}
 
+		free	(full_path);
 		free	(dirent_entry);
 		closedir(dirent_dir);
 
 		return;
 
 	error:
+		if (full_path)		free	(full_path);
+		if (dirent_dir)		closedir(dirent_dir);	/* When I did free(dirent_entry), it gave me an error -- so I removed it.	*/
+
 		return;
 	}
 

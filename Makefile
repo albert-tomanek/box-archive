@@ -1,7 +1,7 @@
 TARGET = box
 LIBS =
 CC = gcc
-CFLAGS = -g -O0 -Wall -Wno-discarded-qualifiers -Wno-unused-label
+CFLAGS = -g -O0 -Wall -Wno-discarded-qualifiers -Wno-deprecated-declarations -Wno-unused-label
 EZXML = ezxml
 
 .PHONY: default all clean
