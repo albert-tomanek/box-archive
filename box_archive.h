@@ -8,6 +8,7 @@
   #include "entry.h"
 
   #define BA_MAX_VER 1		/* The highest box archive version that the program supports */
+  #define BA_FMT_VER 0x01	/* The version of the box archive format that this library creates. [Please keep this in hex]*/
   #define BA_SEP "/"		/* The file path separator */
   #define BA_INTLEN 20      /* The length of temporary char arrays into which int attributes will be written */
 

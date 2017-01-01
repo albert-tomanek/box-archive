@@ -10,6 +10,7 @@
 #include "entrylist.h"
 #include "entry.h"
 #include "filesystem.h"
+#include "byteorder.h"
 #include "dupcat.h"
 #include "positions.h"
 #include "ints.h"
@@ -28,9 +29,11 @@ void      __ba_dir_entry_to_xml	  (ezxml *parent_node, ba_Entry *first_entry);
 void      __ba_create_header	  (BoxArchive *arch);
 void      __ba_load_file_data     (BoxArchive *arch);
 void      __ba_load_dir_file_data (ba_Entry *first_entry, fsize_t *total_size);		/* Sorry for the confusing name -- someone change it, if you come up with a more descriptive one... */
+int       __ba_create_archive_file(BoxArchive *arch, char *loc);	/* Returns 0 on sucess, and >0 on failure */
+void      __ba_save_entry_dir(ba_Entry *first_entry, FILE *outfile);
 
-char*     __ba_load_header(FILE* file);
-hdrlen_t  __ba_get_hdrlen(FILE* file);
+char*     __ba_load_header (FILE* file);
+hdrlen_t  __ba_get_hdrlen  (FILE* file);	/* Used only by ba_load(), and not by ba_save().	*/
 
 void  __fgetstrn(char *dest, int length, FILE* file);
 
@@ -64,7 +67,93 @@ void ba_save(BoxArchive *arch, char *loc)
 
 	__ba_create_header(arch);	/* Creates an XML header of the archive's structure. */
 
-	printf("%s\n", arch->header);
+	__ba_create_archive_file(arch, loc);	/* Actually writes the archive to a file. */
+
+	return;
+
+error:
+	return;
+}
+
+int __ba_create_archive_file(BoxArchive *arch, char *loc)
+{
+	/* This function creates a BOX file at the given location	*
+	 * from the given BoxArchive struct.						*/
+
+	FILE* outfile = NULL;
+	outfile = fopen(loc, "w");		/* Overwrite the current file if it exists */
+
+	check(outfile != NULL, "Error opening output file \"%s\".", loc);
+
+	const uint8_t ba_magic_number[] = {0xDE, 0xCA, 0xDE, BA_FMT_VER};	/* (The last byte is a macro) */
+	const uint8_t end_of_header[]   = {0x00, 0xFF};
+	const uint8_t end_of_file[]     = {0x00, 0xFF};
+
+	/* Write the header to the file */
+	fwrite(ba_magic_number, sizeof(ba_magic_number), 1, outfile);		/* First write the non-changing magic number, and format version. */
+
+	fputc(0x00, outfile);	/* Padding */
+
+	uint64_t header_length = strlen(arch->header);		/* For hdrlen_t see types.h */
+	check(header_length < 65534, "XML header too large to fit into v1 of the BoxArchive format. :'-(");
+	uint16_t header_length16 = stol16((uint16_t) header_length);
+	fwrite(&header_length16, sizeof(hdrlen_t), 1, outfile);	/* Write the length of the XML header as uint16_t to the file. */
+
+	fwrite(arch->header, sizeof(char), strlen(arch->header), outfile);	/* Write the actual XML header to the file. */
+
+	fwrite(end_of_header, sizeof(end_of_header), 1, outfile);
+
+	__ba_save_entry_dir(arch->entry_list, outfile);
+
+	fwrite(end_of_file, sizeof(end_of_file), 1, outfile);
+
+	fclose(outfile);
+
+	return 0;
+
+error:
+	if (outfile)	fclose(outfile);
+
+	return 1;
+}
+
+void __ba_save_entry_dir(ba_Entry *first_entry, FILE *outfile)
+{
+	check(first_entry != NULL, "Null-pointer given to __ba_save_entry_dir() for ba_Entry *first_entry.");
+	check(outfile     != NULL, "Null-pointer given to __ba_save_entry_dir() for FILE *outfile.");
+	/* TODO: Give an error of the file is not open. */
+
+	ba_Entry *current_entry = first_entry;
+	FILE     *current_file  = NULL;
+
+	while (current_entry)
+	{
+		if (current_entry->type == ba_EntryType_FILE)
+		{
+			current_file = fopen(current_entry->__orig_loc, "r");
+
+			if (current_file == NULL)
+			{
+				log_err("Error opening file \"%s\" (at \"%s\" in archive).", current_entry->__orig_loc, current_entry->path);
+				goto error;
+			}
+
+			for (int byte = fgetc(current_file); byte != EOF; byte = fgetc(current_file))
+			{
+				fputc(byte, outfile);
+			}
+
+			fclose(current_file);
+
+			current_file  = NULL;
+		}
+		else if (current_entry->type == ba_EntryType_DIR)
+		{
+			__ba_save_entry_dir(current_entry->child_entries, outfile);
+		}
+
+		current_entry = current_entry->next;
+	}
 
 	return;
 

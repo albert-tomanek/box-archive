@@ -1,5 +1,6 @@
  - Properly free the WHOLE ENTRY TREE with ba_close(), instead of just the toplevel direcotry.
  - Fix seg-fault when run with the -H argument.
+ - Make ba_open() use portable byte order from byteorder.h (/ arpa/inet.h)
  - Add and use macro to append '/' to string only if it doesn't already end in one.
  - Implement ba_add(), and other functions to do with the entry tree.
  - Check for memory leaks.

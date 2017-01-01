@@ -4,8 +4,8 @@
 
   #include "box_archive.h"
 
-  #define BOX_ARCHIVER_VERSION "v0.02 Dev Alpha"
-  #define BOX_ARCHIVER_LICENSE "GPL"
+  #define BOX_ARCHIVER_VERSION "v0.07 Dev alpha"
+  #define BOX_ARCHIVER_LICENSE "GPLv3"
 
   enum Job {
 	  NONE,

@@ -102,13 +102,13 @@ int main (int argc, char *argv[])
 	/* Create an archive if it has not been created yet */
 	if (! archive)
 	{
-		if (job == EXTRACT)
-		{
-			archive = ba_open(boxfile);
-		}
-		else /* if (job == create) */
+		if (job == CREATE)
 		{
 			archive = ba_new();
+		}
+		else
+		{
+			archive = ba_open(boxfile);
 		}
 	}
 
@@ -211,7 +211,6 @@ int main (int argc, char *argv[])
 		case GET_FORMAT:
 		{
 			if (! archive) break;
-
 			printf("Format version is %d.\n", ba_get_format(archive));
 
 			break;
