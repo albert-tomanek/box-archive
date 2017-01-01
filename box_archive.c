@@ -543,11 +543,16 @@ error:
 	return NULL;
 }
 
-ba_Entry* ba_get(BoxArchive *arch, char *path)
+ba_Entry* ba_get(BoxArchive *arch, char *orig_path)
 {
 	check(arch, "Null pointer given for BoxArchive *arch to ba_get().");
 
-	return __ba_get_rec_func(arch->entry_list, path);
+	char *path = NULL;		/* Sorry, could be cleaner... */
+	path = dupcat(orig_path, (orig_path[strlen(orig_path)-1] == BA_SEP[0] ? "" : BA_SEP), "", "");		/* This appends a '/' to the end of the path, because ba_Entry->name/path _always_ ends with a '/' if the entry is a directory.	*/
+	ba_Entry *return_entry = __ba_get_rec_func(arch->entry_list, path);
+
+	free(path);
+	return    return_entry;
 
 error:
 	return NULL;

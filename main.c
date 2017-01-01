@@ -116,7 +116,7 @@ int main (int argc, char *argv[])
 	if (start_entry_path)
 	{
 		ba_Entry *start_entry_orig = ba_get(archive, start_entry_path);
-		if (! start_entry_orig)	fprintf(stderr, "Entry not found.\n");
+		check(start_entry_orig != NULL, "Entry not found.")
 
 		/* Sorry, not the nicest way to do things... */
 
@@ -211,6 +211,7 @@ int main (int argc, char *argv[])
 		case GET_FORMAT:
 		{
 			if (! archive) break;
+
 			printf("Format version is %d.\n", ba_get_format(archive));
 
 			break;
@@ -348,7 +349,7 @@ void help(char *progname)
 	printf("   -x <dest>	Extract the files to the given destination.\n");
 	printf("   -c <src>		Create an archive from the given directory.\n");
 	printf("   -d <path>	Show a file's details.\n");
-	printf("   -F <path>	Work only with this file in the archive.\n");
+	printf("   -F <path>	Work only with this entry in the archive.\n");
 	printf(" \n");
 	printf("   -v			Print the archiver's version.\n");
 	printf("   -h			Print this help text.\n");
