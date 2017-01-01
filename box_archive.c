@@ -485,6 +485,8 @@ void __ba_create_header(BoxArchive *arch)
 	if (arch->header)	free(arch->header);		/* Frees the old header if one exists */
 	arch->header = 	ezxml_toxml(xml);
 
+	ezxml_free(xml);
+
 	return;
 
 error:
