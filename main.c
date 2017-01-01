@@ -135,6 +135,8 @@ int main (int argc, char *argv[])
 	{
 		case CREATE:
 		{
+			if (! boxfile) { fprintf(stderr, "Use the -f argument to specify which .box file you want to save to.\n"); break; }
+
 			/* Hopefully the API will provide a nicer way	*
 			 * to do this in the future...					*/
 
@@ -148,6 +150,7 @@ int main (int argc, char *argv[])
 		case EXTRACT:
 		{
 			if (! archive) break;
+			if (! boxfile) { fprintf(stderr, "Use the -f argument to specify which .box file you want to extract.\n"); break; }
 
 			ba_Entry *first_entry = start_entry;
 			check(first_entry, "Error getting entries.");
@@ -161,6 +164,7 @@ int main (int argc, char *argv[])
 		case LIST:
 		{
 			if (! archive) break;
+			if (! boxfile) { fprintf(stderr, "Use the -f argument to specify which .box file you want to use.\n"); break; }
 
 			ba_Entry *first_entry = start_entry;
 
@@ -173,6 +177,8 @@ int main (int argc, char *argv[])
 
 		case DETAILS:
 		{
+			if (! boxfile) { fprintf(stderr, "Use the -f argument to specify which .box file you want to use.\n"); break; }
+
 			ba_Entry *entry = ba_get(archive, path);
 
 			if (! entry)
@@ -211,6 +217,7 @@ int main (int argc, char *argv[])
 		case GET_FORMAT:
 		{
 			if (! archive) break;
+			if (! boxfile) { fprintf(stderr, "Use the -f argument to specify which .box file you want to use.\n"); break; }
 
 			printf("Format version is %d.\n", ba_get_format(archive));
 
@@ -220,6 +227,7 @@ int main (int argc, char *argv[])
 		case PRINT_HEADER:
 		{
 			if (! archive) break;
+			if (! boxfile) { fprintf(stderr, "Use the -f argument to specify which .box file you want to use.\n"); break; }
 
 			char *header = ba_get_header(archive);		/* Returned string is on _heap_ */
 			printf("%s\n", header);
