@@ -13,7 +13,6 @@
 #include "byteorder.h"
 #include "dupcat.h"
 #include "positions.h"
-#include "ints.h"
 #include "types.h"
 
 typedef struct ezxml ezxml;		/* Not implemented in EzXML for some reason... */
@@ -624,12 +623,11 @@ hdrlen_t __ba_get_hdrlen(FILE* file)
 	fseek(file, P_HEADER_LENGTH, SEEK_SET);
 
 	fgetc(file);
-	uint8_t byte1	=	fgetc(file);
-	uint8_t byte2	=	fgetc(file);
 
-	hdrlen_t length = cvt8to16(byte1, byte2);	/* function from ints.h */
+	uint16_t length;
+	fread(&length, sizeof(uint16_t), 1, file);
 
-	return length;
+	return (hdrlen_t) ltos16(length);		/* no need to cast (hhdrlen_t = uint16_t) but still... */
 
 error:
 	return 0;
