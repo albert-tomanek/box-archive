@@ -8,9 +8,10 @@
   #define BOX_ARCHIVER_LICENSE "GPLv3"
 
   enum Job {
-	  NONE,
+	  NONE = 0,
 	  CREATE,
 	  EXTRACT,
+	  REMOVE,
 	  LIST,
 	  DETAILS,
 	  GET_FORMAT,

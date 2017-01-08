@@ -44,7 +44,7 @@ int main (int argc, char *argv[])
 		return 0;
 	}
 
-	while ((arg = getopt(argc, argv, "lc:x:f:F:d:TH")) != -1)
+	while ((arg = getopt(argc, argv, "lc:x:f:F:d:rTH")) != -1)
 	{
 	switch (arg)
 	{
@@ -52,6 +52,11 @@ int main (int argc, char *argv[])
 		case 'f':					/* File */
 		{
 			boxfile = strdup(optarg);
+			break;
+		}
+		case 'F':					/* Used to specify the entry */
+		{
+			start_entry_path = strdup(optarg);
 			break;
 		}
 
@@ -86,9 +91,10 @@ int main (int argc, char *argv[])
 
 			break;
 		}
-		case 'F':
+		case 'r':
 		{
-			start_entry_path = strdup(optarg);
+			job = REMOVE;
+
 			break;
 		}
 
@@ -149,8 +155,8 @@ int main (int argc, char *argv[])
 
 		case EXTRACT:
 		{
-			if (! archive) break;
 			if (! boxfile) { fprintf(stderr, "Use the -f argument to specify which .box file you want to extract.\n"); break; }
+			if (! archive) break;
 
 			ba_Entry *first_entry = start_entry;
 			check(first_entry, "Error getting entries.");
@@ -161,10 +167,23 @@ int main (int argc, char *argv[])
 			break;
 		}
 
+		case REMOVE:
+		{
+			if (! boxfile)          { fprintf(stderr, "Use the -f argument to specify which .box file you want to extract.\n"); break; }
+			if (! start_entry_path) { fprintf(stderr, "Use the -F argument to specify which file or directory you want to remove.\n"); break; }
+			if (! archive) break;
+
+			ba_Entry *rm_entry = ba_get(archive, start_entry_path);
+			if     (! rm_entry) { fprintf(stderr, "Entry not found.\n"); break; }
+			ba_remove(archive, &rm_entry);
+
+			ba_save(archive, boxfile);
+		}
+
 		case LIST:
 		{
-			if (! archive) break;
 			if (! boxfile) { fprintf(stderr, "Use the -f argument to specify which .box file you want to use.\n"); break; }
+			if (! archive) break;
 
 			ba_Entry *first_entry = start_entry;
 
@@ -181,11 +200,7 @@ int main (int argc, char *argv[])
 
 			ba_Entry *entry = ba_get(archive, path);
 
-			if (! entry)
-			{
-				fprintf(stderr, "Entry not found.\n");
-				break;
-			}
+			if (! entry) { fprintf(stderr, "Entry not found.\n"); break; }
 
 			printf("Type:\t%s\n", ba_entry_nice_type(entry->type) );
 			printf("Name:\t%s\n", entry->name);
@@ -216,8 +231,8 @@ int main (int argc, char *argv[])
 
 		case GET_FORMAT:
 		{
-			if (! archive) break;
 			if (! boxfile) { fprintf(stderr, "Use the -f argument to specify which .box file you want to use.\n"); break; }
+			if (! archive) break;
 
 			printf("Format version is %d.\n", ba_get_format(archive));
 
@@ -226,12 +241,13 @@ int main (int argc, char *argv[])
 
 		case PRINT_HEADER:
 		{
-			if (! archive) break;
 			if (! boxfile) { fprintf(stderr, "Use the -f argument to specify which .box file you want to use.\n"); break; }
+			if (! archive) break;
 
 			char *header = ba_get_header(archive);		/* Returned string is on _heap_ */
 			printf("%s\n", header);
 			free(header);
+
 			break;
 		}
 
@@ -365,5 +381,6 @@ void help(char *progname)
 	printf(" EzXML XML Parser:\n");
 	printf("   Copyright (c) 2004-2006 Aaron Voisine <aaron@voisine.org>\n");
 	printf(" The BOX archiver:\n");
-	printf("   Copyright (c) 2016 Albert Tomanek <electron826@gmail.com>\n\n");
+	printf("   Copyright (c) 2016-2017 Albert Tomanek <electron826@gmail.com>\n");
+	printf("\n");
 }

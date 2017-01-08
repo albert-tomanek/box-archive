@@ -1,5 +1,5 @@
- - Add and use macro to append '/' to string only if it doesn't already end in one.
  - Implement ba_add(), and other functions to do with the entry tree.
+ - Add and use macro to append '/' to string only if it doesn't already end in one.
  - Remove the need for ba_extract() to be given a pointer to BoxArchive *arch?
  - Rename BoxArchive->entry_list to BoxArchive->entry_tree
  - Make ba_get_entries() return a double pointer.

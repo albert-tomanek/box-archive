@@ -348,9 +348,14 @@ error:
 
 void ba_add(ba_Entry **parent_entry, ba_Entry *add_entry)
 {
-	/* Note that this function expects that add_entry 	*
+	/* This function addds the given entry				*
+	 * into the given directory.						*
+	 *													*
+	 * Note that this function expects that add_entry 	*
 	 * is correctly filled in, otherwise there will be	*
-	 * errors at later stages.							*/
+	 * errors at later stages. You are urged to use		*
+	 * ba_add_file() & ba_add_dir() unless you know		*
+	 * what you're doing.								*/
 
 	check(parent_entry, "Null pointer given for ba_Entry **parent_entry to ba_add().");
 	check(add_entry   , "Null pointer given for ba_Entry *add_entry to ba_add().");
@@ -363,6 +368,8 @@ error:
 
 void ba_add_file(ba_Entry **parent_entry, char *file_name, char *loc)
 {
+	/* Like ba_add() but fills in the struct for you.	*/
+
 	check(parent_entry, "Null pointer given for ba_Entry **parent_entry to ba_add_file().");
 
 	ba_Entry *add_entry = malloc(sizeof(ba_Entry));
@@ -385,6 +392,8 @@ void ba_add_dir(ba_Entry **parent_entry, char *dir_name)
 {
 	check(parent_entry, "Null pointer given for ba_Entry **parent_entry to ba_add_dir().");
 
+	/* Like ba_add_file() but for directories. */
+
 	ba_Entry *add_entry = malloc(sizeof(ba_Entry));
 
 	add_entry->type       = ba_EntryType_DIR;
@@ -396,6 +405,36 @@ void ba_add_dir(ba_Entry **parent_entry, char *dir_name)
 	add_entry->child_entries = NULL;		/* For now... */
 
 	bael_add(&((*parent_entry)->child_entries), add_entry);
+
+error:
+	return;
+}
+
+void ba_remove(BoxArchive *arch, ba_Entry **rm_entry)
+{
+	/* Removes (deletes) rm_entry from its archive. *
+	 * Currently 'BoxArchive *arch' is not used,	*
+	 * but it may be needed in future versions.		*/
+
+	check(arch, "Null-pointer given for 'BoxArchive *arch' to ba_remove().");
+	check(*rm_entry != NULL, "Null-pointer given for 'ba_Entry **rm_entry' to ba_remove().");
+
+	if ((*rm_entry)->type == ba_EntryType_FILE)
+	{
+		bael_remove  ((*rm_entry)->parent_dir,     (*rm_entry));		/* We have to de-reference it since rm_entry is a double pointer. */
+		if           ((*rm_entry)->file_data) free((*rm_entry)->file_data);
+		ba_entry_free((*rm_entry));
+	}
+	else if ((*rm_entry)->type == ba_EntryType_DIR)
+	{
+		bael_remove ( (*rm_entry)->parent_dir, (*rm_entry));
+		bael_free ( &((*rm_entry)->child_entries) );				/* Sorry about the comfusing pointer work... */
+		ba_entry_free((*rm_entry));
+	}
+
+	*rm_entry = NULL;
+
+	return;
 
 error:
 	return;

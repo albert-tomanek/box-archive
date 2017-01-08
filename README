@@ -1,0 +1,64 @@
+The BOX Archiver
+================
+
+The BOX archive is a new archive format developed by Albert Tomanek to replace the ageing TAR format.
+It makes use of an XML file header to store the its hierarchy,
+and therefore the metadata about any file in the archive can be obtained without having to read the whole file.
+This is a major advantage over the TAR format.
+
+File data is stored concatenated following the XML header,
+and the start and size of each file is stored in the 'start' and 'size' attributes
+of the corresponding node in the XML header.
+For the full format specification and examples, see the 'doc/' directory.
+
+'The BOX Archiver' (in main.c & .h) is an example (but currently the only) program
+that makes use of the BoxArchive library (box_archive.h) to read box archives.
+The BoxArchive library is licensed under the LGPL and can therefore be used in closed-source projects.
+
+THANKS
+======
+Thanks to Aaron Voisine <aaron@voisine.org> for writing the MIT licensed EzXML parser,
+which I have used in the BoxArchive library to compose and parse the XML headers.
+
+Thanks to Zed Shaw for providing 'dbg.h' in his book 'Learn C the Hard Way',
+which I have used to help make the program stable.
+
+COMPILING
+=========
+The BoxArchive library aims to be portable,
+and so only requires the C standard library to compile.
+All platform-dependent functions have wrappers.
+If porting the BoxArchive library, the only files that need adding to are byteorder.c and filesystem.c.
+
+To compile:
+make
+
+To run:
+./box
+
+FILES
+=====
+doc/BoxArchive			-  A text file depicting the structure of the BoxArchive, ba_Entry, and ba_File structs in memory.
+doc/format.txt			-  The specification for the BOX format.
+box_archive.c			\_
+box_archive.h			/  The main file of the box archive library and its header
+byteorder.c			\_
+byteorder.h			/  Architecture-independent functions for dealing with byte-order.
+dbg.h				-  Definition of the check() and log_err() macros, used in many places.
+dupcat.c			\_
+dupcat.h			/  Contains the dupcat() function, that concatinates 4 strings into malloc()'ed memory.
+entry.c				\_
+entry.h				/  Implementation of the ba_Entry struct.
+entrylist.c			\_
+entrylist.h			/  Functions for manipulating linked lists of ba_Entry structs
+file.c				\_
+file.h				/  Implementation of the ba_File struct.
+filesystem.c			\_
+filesystem.h			/  Wrappers for OS-dependent filesystem functions.
+main.c				\_
+main.h				/  Example archiver that makes use of the BoxArchive library.
+Makefile			-  The makefile.
+positions.h			-  positions of different data in a BOX archive.
+README				-  This readme file.
+TODO				-  Things to do before the next major version. Stuff at the top should be done first.
+types.h				-  Macros for format-version-dependent types.
