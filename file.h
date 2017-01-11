@@ -11,7 +11,7 @@
 
   struct ba_File
   {
-	uint8_t *contents;		/* The file's contents as an array of bytes stored on the heap.		*
+	uint8_t *buffer;		/* The file's contents as an array of bytes stored on the heap.		*
 							 * If the file contents change, then these can be free()'d and		*
 							 * replaced. Can be set to NULL to indicate that the file's 		*
 							 * contents weren't changed. Size of array is stored in ->__size	*/

@@ -146,7 +146,7 @@ int main (int argc, char *argv[])
 			/* Hopefully the API will provide a nicer way	*
 			 * to do this in the future...					*/
 
-			ba_load_fs_tree(src, &(archive->entry_list));
+			ba_load_fs_tree(src, &(archive->entry_list), &(archive->__data_size));
 
 			ba_save(archive, boxfile);
 

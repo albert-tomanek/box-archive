@@ -19,22 +19,18 @@ typedef struct ezxml ezxml;		/* Not implemented in EzXML for some reason... */
 
 /* Private stuff */
 
-void      __ba_load_dir_tree	  (char *orig_header, ba_Entry **first_entry);
-void      __ba_process_xml_dir	  (ezxml *parent_xml, ba_Entry **first_entry, ba_Entry *parent_dir);	/* parent_dir=NULL if toplevel dir */
+void      __ba_load_dir_tree	  (fsize_t *total_size, char *orig_header, ba_Entry **first_entry);
+void      __ba_process_xml_dir	  (fsize_t *total_size, ezxml *parent_xml, ba_Entry **first_entry, ba_Entry *parent_dir);	/* parent_dir=NULL if toplevel dir */
 ba_Entry* __ba_get_file_metadata  (ezxml *file_node, ba_Entry *parent_dir);
 ba_Entry* __ba_get_dir_metadata	  (ezxml *dir_node, ba_Entry *parent_dir);
 ba_Entry* __ba_get_rec_func		  (ba_Entry *first_entry, char *path);
 void      __ba_dir_entry_to_xml	  (ezxml *parent_node, ba_Entry *first_entry);
 void      __ba_create_header	  (BoxArchive *arch);
-void      __ba_load_file_data     (BoxArchive *arch);
-void      __ba_load_dir_file_data (ba_Entry *first_entry, fsize_t *total_size);		/* Sorry for the confusing name -- someone change it, if you come up with a more descriptive one... */
-int       __ba_create_archive_file(BoxArchive *arch, char *loc);	/* Returns 0 on sucess, and >0 on failure */
-void      __ba_save_entry_dir(ba_Entry *first_entry, FILE *outfile);
+int       __ba_create_archive_file(BoxArchive *arch, char *loc);	/* Returns 0 on sucess, and > 0 on failure */
+void      __ba_save_entry_dir     (ba_Entry *first_entry, FILE *outfile);
 
 char*     __ba_load_header (FILE* file);
 hdrlen_t  __ba_get_hdrlen  (FILE* file);	/* Used only by ba_load(), and not by ba_save().	*/
-
-void  __fgetstrn(char *dest, int length, FILE* file);
 
 /* Library functions */
 
@@ -61,8 +57,6 @@ error:
 void ba_save(BoxArchive *arch, char *loc)
 {
 	check(arch, "Null-pointer given to ba_save().");
-
-	__ba_load_file_data(arch);	/* Creates a ->file struct for each entry, but doesn't load any files into memory */
 
 	__ba_create_header(arch);	/* Creates an XML header of the archive's structure. */
 
@@ -106,7 +100,13 @@ int __ba_create_archive_file(BoxArchive *arch, char *loc)
 
 	fwrite(end_of_file, sizeof(end_of_file), 1, outfile);
 
-	fclose(outfile);
+	/* Update the ->loc and ->file members of the archive */
+
+	if (arch->loc)	free(arch->loc);
+	arch->loc  = strdup(loc);
+
+	if (arch->file)	fclose(arch->file);
+	arch->file = outfile;
 
 	return 0;
 
@@ -118,9 +118,19 @@ error:
 
 void __ba_save_entry_dir(ba_Entry *first_entry, FILE *outfile)
 {
+	/* This procedure is used by ba_save(), 		*
+	 * and goes through an entry tree writing the 	*
+	 * contents of each file entry to 'outfile'.	*
+	 * The contents are either read from the file 	*
+	 * at entry->__orig_loc, or from the buffer at 	*
+	 * entry->file_data->buffer.					*
+	 *												*
+	 * This results in all the files' contents 		*
+	 * joined end-to-end in 'outfile'.				*/
+
 	check(first_entry != NULL, "Null-pointer given to __ba_save_entry_dir() for ba_Entry *first_entry.");
 	check(outfile     != NULL, "Null-pointer given to __ba_save_entry_dir() for FILE *outfile.");
-	/* TODO: Give an error of the file is not open. */
+	/* TODO: Give an error if the file is not open. */
 
 	ba_Entry *current_entry = first_entry;
 	FILE     *current_file  = NULL;
@@ -129,22 +139,42 @@ void __ba_save_entry_dir(ba_Entry *first_entry, FILE *outfile)
 	{
 		if (current_entry->type == ba_EntryType_FILE)
 		{
-			current_file = fopen(current_entry->__orig_loc, "r");
+			/* NOTE: The if...elseif...else must be in this order,				*
+			 *       because data in the buffer has the highest priority.		*
+			 *		 If an entry had both ->__orig_loc and ->file_data->buffer,	*
+			 *       then the data in the buffer will most likeley be the newest*/
 
-			if (current_file == NULL)
+			if (current_entry->file_data->buffer != NULL)
 			{
-				log_err("Error opening file \"%s\" (at \"%s\" in archive).", current_entry->__orig_loc, current_entry->path);
-				goto error;
+				for (offset_t offset = 0, uint8_t byte; offset < current_entry->file_data->__size; offset++)
+				{
+					byte = current_entry->file_data->buffer[offset]
+					fputc(byte, outfile);
+				}
 			}
-
-			for (int byte = fgetc(current_file); byte != EOF; byte = fgetc(current_file))
+			else if (current_entry->__orig_loc != NULL)
 			{
-				fputc(byte, outfile);
+				current_file = fopen(current_entry->__orig_loc, "r");
+
+				if (current_file == NULL)
+				{
+					log_err("Error opening file \"%s\" (at \"%s\" in archive).", current_entry->__orig_loc, current_entry->path);
+					goto error;
+				}
+
+				for (int byte = fgetc(current_file); byte != EOF; byte = fgetc(current_file))
+				{
+					fputc(byte, outfile);
+				}
+
+				fclose(current_file);
+
+				current_file  = NULL;
 			}
-
-			fclose(current_file);
-
-			current_file  = NULL;
+			else
+			{
+				log_err("No source for \"%s\" found.", current_entry->path);
+			}
 		}
 		else if (current_entry->type == ba_EntryType_DIR)
 		{
@@ -158,6 +188,75 @@ void __ba_save_entry_dir(ba_Entry *first_entry, FILE *outfile)
 
 error:
 	return;
+}
+
+void __ba_buffer_entries(BoxArchive *arch)
+{
+	/* This function loads all the entries in the given 				*
+	 * tree to their ->file_data->buffer, providing that the file has 	*
+	 * not been newly added and is in the existing archive file.		*
+	 *																	*
+	 * If a file is already in the buffer, it will not be re-read.		*
+	 *																	*
+	 * If a file is not buffered (ie. newly added with ba_add_file()),	*
+	 * the contents of its ->__orig_loc will be copied into the archive *
+	 * when __ba_save_entry_dir() is called from ba_save().				*/
+
+	check(arch, "Null-pointer given to __ba_buffer_entries().");
+
+	__ba_buffer_dir(arch, arch->entry_list);
+}
+
+void __ba_buffer_dir(BoxArchive *arch, ba_Entry *first_entry)
+{
+	check(first_entry, "Null-pointer given to __ba_buffer_dir().");
+
+	ba_Entry *current = first_entry;
+
+	while (current)
+	{
+		if (current->type == ba_EntryType_FILE)
+		{
+			if (! current->file_data)
+			{
+				__ba_load_file_meta(current, &(arch->__data_size));
+			}
+
+			__ba_buffer_file(arch, current);
+		}
+	}
+
+}
+
+void __ba_buffer_file(BoxArchive *arch, ba_Entry *entry)
+{
+	check(arch,  "Null-pointer given to __ba_buffer_file() for BoxArchive *arch.");
+	check(entry, "Null-pointer given to __ba_buffer_file() for ba_Entry *entry.");
+
+	if (entry->file_data->buffer != NULL)
+	{
+		/* If the file is already in the buffer,		*
+		 * don't bother re-reading it.					*/
+
+		return;
+	}
+
+	entry->file_data->buffer = malloc(entry->file_data->__size);
+
+	/* This code should seek to the location in the archive file							*
+	 * contaning the file's data [P_FILE_DATA + ba_get_hdrlen + entry->file_data->__start]	*
+	 * and read it into the buffer [entry->file_data->buffer]								*/
+
+	fseek(arch->file, (P_FILE_DATA + ba_get_hdrlen + entry->file_data->__start), SEEK_SET);		/* arch->file *should* be open */
+
+	int byte;
+	for (offset_t i = 0; i < entry->file_data->__size; i++)
+	{
+		byte = fgetc(arch->file);
+		check(byte != EOF, "Unexpected end of archive file.");
+
+		entry->file_data->buffer[i];
+	}
 }
 
 BoxArchive* ba_open(char *loc)
@@ -187,7 +286,7 @@ BoxArchive* ba_open(char *loc)
 	arch->header = __ba_load_header(arch->file);
 
 	/* Read the metadata from the header */
-	__ba_load_dir_tree(arch->header, &arch->entry_list);
+	__ba_load_dir_tree(&arch->__data_size, arch->header, &arch->entry_list);
 
 	return arch;
 
@@ -198,14 +297,14 @@ error:
 	return NULL;
 }
 
-void __ba_load_dir_tree(char *orig_header, ba_Entry **first_entry)
+void __ba_load_dir_tree(fsize_t *total_size, char *orig_header, ba_Entry **first_entry)
 {
 	/* This function reads the XML header,			*
 	 * and loads the files' metadata into a tree	*
 	 * in memory. It then changes the first_entry	*
 	 * to point to this tree.						*/
 
-	check(orig_header, "Null-pointer passed to __ba_load_dir_tree().");
+	check(total_size, "Null-pointer passed to __ba_load_dir_tree() for char fsize_t *total_size.");
 
 	char *header = strdup(orig_header);		/* We need our own copy, because I think ezxml calls strtok on it */
 
@@ -214,7 +313,7 @@ void __ba_load_dir_tree(char *orig_header, ba_Entry **first_entry)
 
 	check(root_dir, "XML parser error: %s", ezxml_error(root_dir));
 
-	__ba_process_xml_dir(root_dir, first_entry, NULL);		/* Run the recursive (self-calling) function that goes through all the directories and adds everything to the list */
+	__ba_process_xml_dir(total_size, root_dir, first_entry, NULL);		/* Run the recursive (self-calling) function that goes through all the directories and adds everything to the list */
 
 	ezxml_free(root_dir);
 	free(header);
@@ -225,12 +324,14 @@ error:
 	return;
 }
 
-void __ba_process_xml_dir(ezxml *parent_xml, ba_Entry **first_entry, ba_Entry *parent_dir)
+void __ba_process_xml_dir(fsize_t *total_size, ezxml *parent_xml, ba_Entry **first_entry, ba_Entry *parent_dir)
 {
 	/* Recursive function used by __ba_load_dir_tree()	*
 	 * Adds all the files/dirs in the given directory	*
 	 * to the directory tree which is in memory,		*
-	 * which is pointed to by first_entry.				*/
+	 * which is pointed to by first_entry.				*
+	 * 													*
+	 * This function increments arch->__data_size.		*/
 
 	ezxml *file_node = ezxml_child(parent_xml, "file");	/* A linked list of all the file nodes;			*/
 	ezxml *dir_node  = ezxml_child(parent_xml, "dir");	/* A linked list of all the directory nodes.	*/
@@ -241,9 +342,11 @@ void __ba_process_xml_dir(ezxml *parent_xml, ba_Entry **first_entry, ba_Entry *p
 	{
 		entry = __ba_get_file_metadata(file_node, parent_dir);
 
-		/* Add the file path to the list */
-		bael_add( parent_dir ? &(parent_dir->child_entries) : first_entry, entry);		/* If we are in the top level directory and parent_dir is NULL,	*
-																				 		 * the pointer to parent_dir->child_entries would be false.		*/
+		/* Add the file path to the entry tree */
+		bael_add( parent_dir ? &(parent_dir->child_entries) : first_entry, entry);		/* If we are in the top level directory and parent_dir is NULL,	*/																				 		 * the pointer to parent_dir->child_entries would be false.		*/
+
+		/* Increment the archive's total size */
+		*total_size += entry->file_data->size;
 
 		file_node = file_node->next;
 	}
@@ -257,7 +360,7 @@ void __ba_process_xml_dir(ezxml *parent_xml, ba_Entry **first_entry, ba_Entry *p
 		bael_add( parent_dir ? &(parent_dir->child_entries) : first_entry, entry);
 
 		/* Run this function again, this time on the newly loaded directory */
-		__ba_process_xml_dir(dir_node, &(entry->child_entries), entry);
+		__ba_process_xml_dir(total_size, dir_node, &(entry->child_entries), entry);
 
 		dir_node = dir_node->next;
 	}
@@ -283,7 +386,7 @@ ba_Entry* __ba_get_file_metadata(ezxml *file_node, ba_Entry *parent_dir)
 	file_entry->path = joint_file_name;		/* Note: the string will be freed when the struct is freed.	*/
 	file_entry->type = ba_EntryType_FILE;
 
-	file_data->contents = NULL;						/* The file will only be loaded into memory if it is being modified */
+	file_data->contents = NULL;						/* The file will only be loaded into memory if it is being modified, or if the curretn archive file is being overwritten. */
 	file_data->__size   = atoi( ezxml_attr(file_node, "size")  );
 	file_data->__start  = atoi( ezxml_attr(file_node, "start") );
 
@@ -346,7 +449,7 @@ error:
 	return 1;
 }
 
-void ba_add(ba_Entry **parent_entry, ba_Entry *add_entry)
+void ba_add(BoxArchive *arch, ba_Entry **parent_entry, ba_Entry *add_entry)
 {
 	/* This function addds the given entry				*
 	 * into the given directory.						*
@@ -355,7 +458,8 @@ void ba_add(ba_Entry **parent_entry, ba_Entry *add_entry)
 	 * is correctly filled in, otherwise there will be	*
 	 * errors at later stages. You are urged to use		*
 	 * ba_add_file() & ba_add_dir() unless you know		*
-	 * what you're doing.								*/
+	 * what you're doing. Also, ba_add_file increments 	*
+	 * arch->__data_size by the right amount.			*/
 
 	check(parent_entry, "Null pointer given for ba_Entry **parent_entry to ba_add().");
 	check(add_entry   , "Null pointer given for ba_Entry *add_entry to ba_add().");
@@ -366,7 +470,7 @@ error:
 	return;
 }
 
-void ba_add_file(ba_Entry **parent_entry, char *file_name, char *loc)
+void ba_add_file(BoxArchive *arch, ba_Entry **parent_entry, char *file_name, char *loc)
 {
 	/* Like ba_add() but fills in the struct for you.	*/
 
@@ -378,9 +482,14 @@ void ba_add_file(ba_Entry **parent_entry, char *file_name, char *loc)
 	add_entry->__orig_loc = strdup(loc);
 	add_entry->path       = dupcat((*parent_entry)->path ? (*parent_entry)->path : "", file_name, "", "");
 	add_entry->name       = strdup(file_name);
-	add_entry->file_data  = NULL;
+	add_entry->file_data  = malloc(sizeof(ba_File));
 	add_entry->parent_dir = *parent_entry;	/* Doesn't matter if it's NULL */
 	add_entry->child_entries = NULL;
+
+	entry->file_data->__size  = ba_fsize(entry->__orig_loc);		/* These are ESSENTIAL. Without them __ba_create_archive_file() would crash and burn. */
+	entry->file_data->__start = *total_size;
+
+	*(arch->__data_size) += entry->file_data->__size;
 
 	bael_add(&((*parent_entry)->child_entries), add_entry);
 
@@ -388,7 +497,7 @@ error:
 	return;
 }
 
-void ba_add_dir(ba_Entry **parent_entry, char *dir_name)
+void ba_add_dir(BoxArchive *arch, ba_Entry **parent_entry, char *dir_name)
 {
 	check(parent_entry, "Null pointer given for ba_Entry **parent_entry to ba_add_dir().");
 
@@ -401,7 +510,7 @@ void ba_add_dir(ba_Entry **parent_entry, char *dir_name)
 	add_entry->path       = dupcat((*parent_entry)->path ? (*parent_entry)->path : "", dir_name, (dir_name[strlen(dir_name)-1] == BA_SEP[0] ? "" : BA_SEP), "");
 	add_entry->name       = strdup(dir_name);
 	add_entry->file_data  = NULL;
-	add_entry->parent_dir = *parent_entry;	/* Doesn't matter if it's NULL */
+	add_entry->parent_dir = *parent_entry;	/* Doesn't matter if this is NULL */
 	add_entry->child_entries = NULL;		/* For now... */
 
 	bael_add(&((*parent_entry)->child_entries), add_entry);
@@ -414,7 +523,7 @@ void ba_remove(BoxArchive *arch, ba_Entry **rm_entry)
 {
 	/* Removes (deletes) rm_entry from its archive. *
 	 * Currently 'BoxArchive *arch' is not used,	*
-	 * but it may be needed in future versions.		*/
+	 * but it may be needed in the future.			*/
 
 	check(arch, "Null-pointer given for 'BoxArchive *arch' to ba_remove().");
 	check(*rm_entry != NULL, "Null-pointer given for 'ba_Entry **rm_entry' to ba_remove().");
@@ -433,73 +542,6 @@ void ba_remove(BoxArchive *arch, ba_Entry **rm_entry)
 	}
 
 	*rm_entry = NULL;
-
-	return;
-
-error:
-	return;
-}
-
-void __ba_load_file_data(BoxArchive *arch)
-{
-	/* Goes through an archive's entry tree, 		*
-	 * and creates a ba_File struct for each entry,	*
-	 * containing the file's size, etc.				*/
-
-	check(arch, "Null-pointer given to __ba_load_file_data().");
-
-	__ba_load_dir_file_data(arch->entry_list, &(arch->__data_size) );
-
-	return;
-
-error:
-	return;
-}
-
-void __ba_load_dir_file_data(ba_Entry *first_entry, fsize_t *total_size)
-{
-	/* Recursive function used by __ba_load_file_data()	*/
-
-	check(total_size, "Null-pointer given to __ba_load_dir_file_data() for int *total_size.");
-
-	if (! first_entry)
-	{
-		/* In case of an empty directory. */
-		return;
-	}
-
-	ba_Entry *current = first_entry;
-
-	while (current)
-	{
-		if (current->type == ba_EntryType_FILE)
-		{
-			if (! current->__orig_loc)
-			{
-				/* ->__orig_loc is NEEDED so that ba knows 	*
-				 * where to read the source file from when 	*
-				 * creating the archive.					*/
-
-				log_warn("Source file for \"%s\" unspecified. Developer: please call ba_load_fs_tree() or ba_add() before calling ba_save().", current->path);		/* May ba a bit vague to a clueless developer; please improve if you can come up with a better error message... */
-				goto error;
-			}
-
-			current->file_data = calloc(1, sizeof(ba_File));
-			current->file_data->__size  = ba_fsize(current->__orig_loc);
-			current->file_data->__start = *total_size;
-
-			*total_size += current->file_data->__size;	/* We're not incrementing the pointer; we're incrementeng the actual integer that is pointed to. */
-		}
-		else if (current->type == ba_EntryType_DIR)
-		{
-			/* Directory entries' ->file_data	*
-			 * is a null-pointer.				*/
-
-			__ba_load_dir_file_data(current->child_entries, total_size);
-		}
-
-		current = current->next;
-	}
 
 	return;
 

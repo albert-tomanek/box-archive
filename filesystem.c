@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "dbg.h"
+#include "types.h"
 #include "dupcat.h"
 #include "box_archive.h"
 #include "entrylist.h"
@@ -19,7 +20,7 @@
 	/* 'Private' declarations */
 
 	size_t dirent_entry_size(char *path);
-	void __rec_getdir_func(char *path, char *root_dir_path, ba_Entry **first_entry, ba_Entry *parent_entry);
+	void __rec_getdir_func(char *path, char *root_dir_path, ba_Entry **first_entry, ba_Entry *parent_entry, fsize_t *data_size);
 
 	/* Functions */
 
@@ -44,13 +45,13 @@
 		return;
 	}
 
-	void ba_load_fs_tree(char *orig_root_path, ba_Entry **first_entry)
+	void ba_load_fs_tree(char *orig_root_path, ba_Entry **first_entry, fsize_t *data_size)
 	{
-		/* check(**first_entry, ...)	gave an error for some reason, else I would have used it. */
+		check(first_entry, "Null-pointer given to ba_load_fs_tree() for 'ba_Entry **first_entry'");
 
 		char *root_path = dupcat(orig_root_path, (orig_root_path[strlen(orig_root_path)-1] == BA_SEP[0] ? "" : BA_SEP), "", ""); 	/* just ads a '/' to the end of the root path if it isn't there. Eg. makes '/tmp/test/' from ''/tmp/test'. */
 
-		__rec_getdir_func("", root_path, first_entry, NULL);
+		__rec_getdir_func("", root_path, first_entry, NULL, data_size);
 
 		free(root_path);
 		return;
@@ -60,7 +61,7 @@
 		return;
 	}
 
-	void __rec_getdir_func(char *path, char *root_path, ba_Entry **first_entry, ba_Entry *parent_entry)		/* 'root_dir_path' is the path of the root of the archive, while 'path' is the path of the current entry in the archive. */
+	void __rec_getdir_func(char *path, char *root_path, ba_Entry **first_entry, ba_Entry *parent_entry, fsize_t *data_size)		/* 'root_dir_path' is the path of the root of the archive, while 'path' is the path of the current entry in the archive. */
 	{
 		char *full_path = dupcat(root_path, path, "", "");				/* This is the path of the archive's root directory, + the path of the directory to process.	*/
 		DIR  			 *dirent_dir 	= opendir(full_path);
@@ -89,12 +90,18 @@
 				current->type = ba_EntryType_FILE;
 				current->name = strdup(dirent_entry->d_name);
 				current->path = dupcat(path, current->name, "", "");
-				current->file_data     = NULL;							/* The file hasn't been added to an archive yet */
+				current->file_data     = malloc(sizeof(ba_File));
 				current->parent_dir    = parent_entry;
 				current->child_entries = NULL;
 				current->__orig_loc    = dupcat(root_path, current->path, "", "");		/* eg. '/tmp/test/' + 'directory/file.dat'. This string us used so that ba_save() knows where to read the source file from when writing to the archive. */
+
+				current->file_data->buffer  = NULL;
+				current->file_data->__size  = ba_fsize(current->__orig_loc);		/* These are ESSENTIAL. Without them __ba_create_archive_file() would crash and burn. */
+				current->file_data->__start = *data_size;
+
+				if (data_size)	*data_size += current->file_data->__size;			/* If they dive us a null-pointer to data_size, we'd fet a seg-fault if we tried to increment it. */
 			}
-			if (dirent_entry->d_type == DT_DIR			/* Directory */ )
+			if (dirent_entry->d_type == DT_DIR)		/* Directory */
 			{
 				current->type = ba_EntryType_DIR;
 				current->name = strdup(dirent_entry->d_name);
@@ -142,7 +149,6 @@
 	{
 		/* From: http://www.securecoding.cert.org/confluence/plugins/servlet/mobile#content/view/42729539 */
 
-
 		struct stat file_stat;
 
 		/* Ensure that is is a regular file */
@@ -155,7 +161,7 @@
 		return (fsize_t) file_stat.st_size;
 
 	error:
-		return 0;
+		return -1;
 	}
 
 #endif
