@@ -6,7 +6,7 @@ void ba_file_free(struct ba_File **file)
 	if (! file)
 		return;
 
-	if ((*file)->contents)	free((*file)->contents);
+	if ((*file)->buffer)	free((*file)->buffer);
 	free(*file);
 
 	*file = NULL;

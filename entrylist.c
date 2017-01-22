@@ -2,6 +2,7 @@
 #include <stdlib.h>
 
 #include "dbg.h"
+#include "box_archive.h"
 #include "file.h"
 #include "entry.h"
 #include "entrylist.h"
@@ -32,26 +33,25 @@ void bael_add(ba_Entry **first_entry, ba_Entry *new_entry)
 	return;
 }
 
-void bael_remove(ba_Entry *parent_dir, ba_Entry *rm_entry)
+void bael_remove(BoxArchive *arch, ba_Entry *rm_entry)
 {
 	/* Removes rm_entry (if present) from parent_dir->child_entries.	*
 	 * Does NOT free rm_entry (just removes it).						*/
 
-	check(parent_dir , "Null-pointer given for *parent_dir to bael_remove().");
+	check(arch, "Null-pointer given for *arch to bael_remove().");
 	check(rm_entry  , "Null-pointer given for *rm_entry to bael_remove().");
 
-	check(! strcmp(rm_entry->parent_dir->path, parent_dir->path), "Entry \"%s\" not in direcotry \"%s\".", rm_entry->name, parent_dir->path);
+	ba_Entry **first_entry = (rm_entry->parent_dir != NULL) ? &(rm_entry->parent_dir->child_entries) : &(arch->entry_list);		/* If an entry is in the toplevel directory, *first_entry is arch->entry_list */
 
-	ba_Entry *first_entry = parent_dir->child_entries;
-	check( first_entry != NULL, "Can't remove \"%s\" - no entries in directory \"%s\".", rm_entry->path, parent_dir->path);
-
-	if (first_entry == rm_entry)
+	if (*first_entry == rm_entry)
 	{
-		parent_dir->child_entries = rm_entry->next;		/* Gives us the address of the pointer */
+		/* If we are the first in the list */
+
+		*first_entry = rm_entry->next;
 	}
 	else
 	{
-		ba_Entry *prev_entry = __bael_getprev(first_entry, rm_entry);
+		ba_Entry *prev_entry = __bael_getprev(*first_entry, rm_entry);
 		check(prev_entry, "__bael_getprev() returned NULL.");
 
 		prev_entry->next = rm_entry->next;
@@ -130,7 +130,7 @@ ba_Entry* __bael_getprev(ba_Entry *first_entry, ba_Entry *next_entry)
 
 	if (next_entry == first_entry)
 	{
-		/* If we are getting the previous of the first line (index 0) */
+		/* If we are the first in the list */
 		return first_entry;
 	}
 

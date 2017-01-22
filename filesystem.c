@@ -47,9 +47,20 @@
 
 	void ba_load_fs_tree(char *orig_root_path, ba_Entry **first_entry, fsize_t *data_size)
 	{
+		/* This function loads the filesystem hierarchy		*
+		 * at *orig_root_path into an entry tree, 			*
+		 * and points *first_entry to it.					*
+		 * if *data_size is not NULL, it will add the size 	*
+		 * of each file it loads to it.						*
+		 * 													*
+		 * Loaded files are stored as entry->__orig_loc;	*
+		 * entry->file_data->buffer is NULL.				*/
+
+		char *root_path = NULL;
+
 		check(first_entry, "Null-pointer given to ba_load_fs_tree() for 'ba_Entry **first_entry'");
 
-		char *root_path = dupcat(orig_root_path, (orig_root_path[strlen(orig_root_path)-1] == BA_SEP[0] ? "" : BA_SEP), "", ""); 	/* just ads a '/' to the end of the root path if it isn't there. Eg. makes '/tmp/test/' from ''/tmp/test'. */
+		root_path = dupcat(orig_root_path, (orig_root_path[strlen(orig_root_path)-1] == BA_SEP[0] ? "" : BA_SEP), "", ""); 	/* just ads a '/' to the end of the root path if it isn't there. Eg. makes '/tmp/test/' from ''/tmp/test'. */
 
 		__rec_getdir_func("", root_path, first_entry, NULL, data_size);
 
@@ -63,6 +74,9 @@
 
 	void __rec_getdir_func(char *path, char *root_path, ba_Entry **first_entry, ba_Entry *parent_entry, fsize_t *data_size)		/* 'root_dir_path' is the path of the root of the archive, while 'path' is the path of the current entry in the archive. */
 	{
+		/* Recursive function used	*
+		 * by ba_load_fs_tree().	*/
+
 		char *full_path = dupcat(root_path, path, "", "");				/* This is the path of the archive's root directory, + the path of the directory to process.	*/
 		DIR  			 *dirent_dir 	= opendir(full_path);
 		check(dirent_dir != NULL, "Error getting contents of '%s'.", path);
@@ -111,7 +125,7 @@
 				current->child_entries = NULL;
 
 				/* Run on the subdirectory */
-				__rec_getdir_func(current->path, root_path, &(current->child_entries), current);
+				__rec_getdir_func(current->path, root_path, &(current->child_entries), current, data_size);
 			}
 
 			bael_add(first_entry, current);		/* Add the newly created entry to the entry tree */

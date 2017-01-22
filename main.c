@@ -44,7 +44,7 @@ int main (int argc, char *argv[])
 		return 0;
 	}
 
-	while ((arg = getopt(argc, argv, "lc:x:f:F:d:rTH")) != -1)
+	while ((arg = getopt(argc, argv, "lc:x:f:F:drTH")) != -1)
 	{
 	switch (arg)
 	{
@@ -72,7 +72,6 @@ int main (int argc, char *argv[])
 		break;
 		case 'd':
 		{
-			path = strdup(optarg);
 			job  = DETAILS;
 
 			break;
@@ -178,6 +177,8 @@ int main (int argc, char *argv[])
 			ba_remove(archive, &rm_entry);
 
 			ba_save(archive, boxfile);
+
+			break;
 		}
 
 		case LIST:
@@ -198,7 +199,7 @@ int main (int argc, char *argv[])
 		{
 			if (! boxfile) { fprintf(stderr, "Use the -f argument to specify which .box file you want to use.\n"); break; }
 
-			ba_Entry *entry = ba_get(archive, path);
+			ba_Entry *entry = ba_get(archive, start_entry_path);
 
 			if (! entry) { fprintf(stderr, "Entry not found.\n"); break; }
 
@@ -369,6 +370,7 @@ void help(char *progname)
 	printf("   -H			Print the header XML of an archive.\n");
 	printf("   -T			Print the Type/version of an archive.\n");
 	printf("   -l			List the files in the archive.\n");
+	printf("   -r			Remove a file/direcotry.\n");
 	printf("   -f <arch>	Use this archive file.\n");
 	printf("   -x <dest>	Extract the files to the given destination.\n");
 	printf("   -c <src>		Create an archive from the given directory.\n");

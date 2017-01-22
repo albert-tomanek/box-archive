@@ -11,9 +11,22 @@ and the start and size of each file is stored in the 'start' and 'size' attribut
 of the corresponding node in the XML header.
 For the full format specification and examples, see the 'doc/' directory.
 
-'The BOX Archiver' (in main.c & .h) is an example (but currently the only) program
-that makes use of the BoxArchive library (box_archive.h) to read box archives.
-The BoxArchive library is licensed under the LGPL and can therefore be used in closed-source projects.
+The BoxArchive library is licensed under the LGPL
+and can therefore be used in closed-source projects.
+
+CONTRIBUTING
+============
+If you want to learn about how the BoxArchive library works,
+or want to develop it/contribute code, have a look at 'doc/howitworks.txt'.
+You should also look at the source code, which is mostly well-documented.
+
+COMING SOON
+===========
+The following features are planned for future
+versions of the BoxArchive library:
+ - Unix file permissions
+ - Soft links
+ - Per-file compression using Google Snappy [https://github.com/google/snappy]
 
 THANKS
 ======
@@ -21,7 +34,7 @@ Thanks to Aaron Voisine <aaron@voisine.org> for writing the MIT licensed EzXML p
 which I have used in the BoxArchive library to compose and parse the XML headers.
 
 Thanks to Zed Shaw for providing 'dbg.h' in his book 'Learn C the Hard Way',
-which I have used to help make the program stable.
+which I have used to detect errors.
 
 COMPILING
 =========
@@ -40,6 +53,7 @@ FILES
 =====
 doc/BoxArchive			-  A text file depicting the structure of the BoxArchive, ba_Entry, and ba_File structs in memory.
 doc/format.txt			-  The specification for the BOX format.
+doc/howitworks.txt		-  An in-depth description of how the BoxArchive library works for anyone willing to contribute.
 box_archive.c			\_
 box_archive.h			/  The main file of the box archive library and its header
 byteorder.c			\_

@@ -9,6 +9,9 @@ void ba_entry_free(ba_Entry *entry)
 	if (entry->path)		free(entry->path);			/* entry->path should *hopefully* be on heap */
 	if (entry->__orig_loc)	free(entry->__orig_loc);
 
+	/* Does NOT free the ->file_data struct;	*
+	 * this is done by bael_free().				*/
+
 	free(entry);
 }
 
