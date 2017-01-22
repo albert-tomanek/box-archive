@@ -219,6 +219,7 @@ int main (int argc, char *argv[])
 
 			if (entry->type == ba_EntryType_DIR  && entry->child_entries != NULL)
 			{
+				printf("Size (bytes):\t%llu\n", (long long unsigned) ba_treesize(entry));
 				printf("Contents:\t");
 				for (ba_Entry *current = entry->child_entries; current != NULL; current = current->next)
 				{

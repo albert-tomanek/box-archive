@@ -27,6 +27,7 @@ ba_Entry* __ba_get_rec_func		  (ba_Entry *first_entry, char *path);
 void      __ba_buffer_entries     (BoxArchive *arch);
 void      __ba_buffer_dir         (BoxArchive *arch, ba_Entry *first_entry);
 void      __ba_buffer_file        (BoxArchive *arch, ba_Entry *entry);
+void      __ba_treesize_rec_func  (ba_Entry *first_entry, fsize_t *size);
 void      __ba_dir_entry_to_xml	  (ezxml *parent_node, ba_Entry *first_entry);
 void      __ba_create_header	  (BoxArchive *arch);
 int       __ba_create_archive_file(BoxArchive *arch, char *loc);	/* Returns 0 on sucess, and > 0 on failure */
@@ -569,21 +570,25 @@ void ba_remove(BoxArchive *arch, ba_Entry **rm_entry)
 	check(arch, "Null-pointer given for 'BoxArchive *arch' to ba_remove().");
 	check(*rm_entry != NULL, "Null-pointer given for 'ba_Entry **rm_entry' to ba_remove().");
 
-	if ((*rm_entry)->type == ba_EntryType_FILE)
+	/* Load entries from the file into buffer, 	*
+	 * else we'd lose their start position 		*
+	 * after calling __ba_shift().				*/
+
+	__ba_buffer_entries(arch);
+
+	/* If we just remove our entry, there'll be a space 	*
+	 * in the data block for our file data. Therefore, 		*
+	 * we decrease the ->file_data->__start in every entry	*
+	 * after this one by the size of the entry we are 		*
+	 * removing.											*/
+
+	if ((*rm_entry)->file_data)
 	{
-		/* Load entries from the file into buffer, 	*
-		 * else we'd lose their start position 		*
-		 * after calling __ba_shift().				*/
-
-		__ba_buffer_entries(arch);
-
-		/* If we just remove our entry, there'll be a space 	*
-		 * in the data block for our file data. Therefore, 		*
-		 * we decrease the ->file_data->__start in every entry	*
-		 * after this one by the size of the entry we are 		*
-		 * removing.											*/
-
 		__ba_shift(*rm_entry, (*rm_entry)->file_data->__size);
+	}
+	else
+	{
+		__ba_shift(*rm_entry, ba_treesize( (*rm_entry) ));
 	}
 
 	if ((*rm_entry)->type == ba_EntryType_FILE)
@@ -650,6 +655,37 @@ void __ba_shift(ba_Entry *start_entry, fsize_t amount)
 
 			current = current->parent_dir->next;
 		}
+	}
+}
+
+fsize_t ba_treesize(ba_Entry *dir)
+{
+	if (! dir) return 0;
+
+	fsize_t size = 0;
+
+	__ba_treesize_rec_func(dir->child_entries, &size);
+
+	return size;
+}
+
+void __ba_treesize_rec_func(ba_Entry *first_entry, fsize_t *size)
+{
+	ba_Entry *current = first_entry;
+
+	while (current)
+	{
+		if (current->file_data)
+		{
+			*size += current->file_data->__size;
+		}
+
+		if (current->type == ba_EntryType_DIR)
+		{
+			__ba_treesize_rec_func(current->child_entries, size);
+		}
+
+		current = current->next;
 	}
 }
 
