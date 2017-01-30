@@ -31,8 +31,9 @@ void      __ba_treesize_rec_func  (ba_Entry *first_entry, fsize_t *size);
 void      __ba_dir_entry_to_xml	  (ezxml *parent_node, ba_Entry *first_entry);
 void      __ba_create_header	  (BoxArchive *arch);
 int       __ba_create_archive_file(BoxArchive *arch, char *loc);	/* Returns 0 on sucess, and > 0 on failure */
-void      __ba_save_entry_dir     (ba_Entry *first_entry, FILE *outfile);
-void      __ba_shift              (ba_Entry *start_entry, fsize_t amount);
+void      __ba_save_entry_dir     (ba_Entry *first_entry, FILE *infile, FILE *outfile, fsize_t *total_size);
+void      __ba_rearrange          (BoxArchive *arch);
+void      __ba_rec_rearrange_func (ba_Entry *first_entry, offset_t *data_size);
 
 char*     __ba_load_header (FILE* file);
 hdrlen_t  __ba_get_hdrlen  (FILE* file);	/* Used only by ba_load(), and not by ba_save().	*/
@@ -65,8 +66,6 @@ void ba_save(BoxArchive *arch, char *loc)
 {
 	check(arch, "Null-pointer given to ba_save().");
 
-	__ba_create_header(arch);	/* Creates an XML header of the archive's structure. */
-
 	if (arch->loc != NULL)
 	{
 		if (! strcmp(arch->loc, loc))
@@ -77,6 +76,10 @@ void ba_save(BoxArchive *arch, char *loc)
 			__ba_buffer_entries(arch);
 		}
 	}
+
+	__ba_rearrange(arch);
+
+	__ba_create_header(arch);	/* Creates an XML header of the archive's structure. */
 
 	__ba_create_archive_file(arch, loc);	/* Actually writes the archive to a file. */
 
@@ -114,7 +117,9 @@ int __ba_create_archive_file(BoxArchive *arch, char *loc)
 
 	fwrite(end_of_header, sizeof(end_of_header), 1, outfile);
 
-	__ba_save_entry_dir(arch->entry_list, outfile);
+	arch->__data_size = 0;		/* I know that __ba_rearrange() already does this, sorry! */
+
+	__ba_save_entry_dir(arch->entry_list, arch->file, outfile, &(arch->__data_size));	/* Note: arch->file has not been changed yet, so it will still be the source archive. */
 
 	fwrite(end_of_file, sizeof(end_of_file), 1, outfile);
 
@@ -134,7 +139,7 @@ error:
 	return 1;
 }
 
-void __ba_save_entry_dir(ba_Entry *first_entry, FILE *outfile)
+void __ba_save_entry_dir(ba_Entry *first_entry, FILE *infile, FILE *outfile, fsize_t *total_size)
 {
 	/* This procedure is used by ba_save(), 		*
 	 * and goes through an entry tree writing the 	*
@@ -146,7 +151,7 @@ void __ba_save_entry_dir(ba_Entry *first_entry, FILE *outfile)
 	 * This results in all the files' contents 		*
 	 * joined end-to-end in 'outfile'.				*/
 
-	check(outfile     != NULL, "Null-pointer given to __ba_save_entry_dir() for FILE *outfile.");
+	check(outfile != NULL, "Null-pointer given to __ba_save_entry_dir() for FILE *outfile.");
 	/* TODO: Give an error if the file is not open. */
 
 	ba_Entry *current_entry = first_entry;		/* If this is null, the directory is empty and the loop will be skipped */
@@ -156,13 +161,40 @@ void __ba_save_entry_dir(ba_Entry *first_entry, FILE *outfile)
 	{
 		if (current_entry->type == ba_EntryType_FILE)
 		{
+			if (current_entry->file_data == NULL)
+			{
+				/* If there's no file_data */
+
+				log_err("File data for \"%s\" (%s) not present. The archive will be corrupt.", current_entry->path, (current_entry->__orig_loc) ? current_entry->__orig_loc : "already in archive");
+
+				current_entry = current_entry->next;
+				continue;
+			}
+
+			if (	(current_entry->file_data->buffer      == NULL)
+			/*	&&	(current_entry->file_data->__old_start == 0)	*/	/* Hmm... I can't do this, because if the data was at the start of the data block, this would be 0 too... [FIXME] */
+				&&	(current_entry->__orig_loc             == NULL))
+			{
+				/* Skip if we haven't got a source for the file data. */
+
+				log_err("No source for \"%s\" found.", current_entry->path);
+
+				current_entry = current_entry->next;
+				continue;
+			}
+
 			/* NOTE: The if...elseif...else must be in this order,				*
 			 *       because data in the buffer has the highest priority.		*
 			 *		 If an entry had both ->__orig_loc and ->file_data->buffer,	*
-			 *       then the data in the buffer will most likely be the newest*/
+			 *       then the data in the buffer will most likely be the newest	*/
+
+		 	/* If current_entry->file_data->__start != *total_size,	*
+			 * something has gone terribly wrong...					*/
 
 			if (current_entry->file_data->buffer != NULL)
 			{
+				/* If there is data in the buffer... */
+
 				uint8_t byte = 0;
 
 				for (offset_t offset = 0; offset < current_entry->file_data->__size; offset++)
@@ -173,6 +205,8 @@ void __ba_save_entry_dir(ba_Entry *first_entry, FILE *outfile)
 			}
 			else if (current_entry->__orig_loc != NULL)
 			{
+				/* If the data is to be read from another file... */
+
 				current_file = fopen(current_entry->__orig_loc, "r");
 
 				if (current_file == NULL)
@@ -190,17 +224,92 @@ void __ba_save_entry_dir(ba_Entry *first_entry, FILE *outfile)
 
 				current_file  = NULL;
 			}
-			else
+			else if (current_entry->file_data->__old_start)
 			{
-				log_err("No source for \"%s\" found.", current_entry->path);
+				/* If the data is to be read from the source archive */
+
+				fseek(infile, (P_FILE_DATA + __ba_get_hdrlen(infile) + current_entry->file_data->__old_start), SEEK_SET);
+
+				int byte;
+
+				for (offset_t i = 0; i < current_entry->file_data->__size; i++)
+				{
+					byte = fgetc(infile);
+					check(byte != EOF, "Unexpected end of archive file.");
+					fputc(byte, outfile);
+				}
+
 			}
+
+			/* Increment the total_size by the currenf file's size,		*
+			 * so that the next file's ->file_data->__start can be set	*/
+
+			*total_size += current_entry->file_data->__size;
+
 		}
 		else if (current_entry->type == ba_EntryType_DIR)
 		{
-			__ba_save_entry_dir(current_entry->child_entries, outfile);
+			__ba_save_entry_dir(current_entry->child_entries, infile, outfile, total_size);
 		}
 
 		current_entry = current_entry->next;
+	}
+
+	return;
+
+error:
+	return;
+}
+
+void __ba_rearrange(BoxArchive *arch)
+{
+	/* This function resets all file's start positions	*
+	 * (saving them in a temporary variable), and		*
+	 * gives them new start offsets, starting from 0.	*
+	 * 													*
+	 * For example, this is necessary when a file has 	*
+	 * been removed from the middle of the data block,	*
+	 * and there would be a gap in start offsets.		*
+	 * Have a nice day.									*/
+
+	check(arch, "Null-pointer given to __ba_rearrange()");
+
+	arch->__data_size = 0;
+
+	__ba_rec_rearrange_func(arch->entry_list, &(arch->__data_size));
+
+	return;
+
+error:
+	return;
+}
+
+void __ba_rec_rearrange_func(ba_Entry *first_entry, offset_t *data_size)
+{
+	/* Don't do a null-check for first_entry, because it may be an empty direcotry. */
+	check(data_size, "Null-pointer given for *data_size to __ba_rec_rearrange_func()");
+
+	ba_Entry *current = first_entry;
+
+	while (current)
+	{
+		if (current->type == ba_EntryType_FILE)
+		{
+			if (! current->file_data)
+			{
+				log_err("No file data present for '%s'. >:-{", current->path);
+			}
+
+			current->file_data->__old_start = current->file_data->__start;
+			current->file_data->__start = *data_size;
+			*data_size += current->file_data->__size;
+		}
+		if (current->type == ba_EntryType_DIR)
+		{
+			__ba_rec_rearrange_func(current->child_entries, data_size);
+		}
+
+		current = current->next;
 	}
 
 	return;
@@ -529,7 +638,7 @@ void ba_add_file(BoxArchive *arch, ba_Entry **parent_entry, char *file_name, cha
 	add_entry->child_entries = NULL;
 
 	add_entry->file_data->__size  = ba_fsize(add_entry->__orig_loc);		/* These are ESSENTIAL. Without them __ba_create_archive_file() would crash and burn. */
-	add_entry->file_data->__start = arch->__data_size;					/* Add ourselves to the end of the data chunk */
+	add_entry->file_data->__start = 0;					/* 0 for now, because we haven't been saved to a file yet. */
 
 	arch->__data_size += add_entry->file_data->__size;				/* Increment the overall size by our size, so that other files can beadded to the NEW end of the data chunk */
 
@@ -576,21 +685,6 @@ void ba_remove(BoxArchive *arch, ba_Entry **rm_entry)
 
 	__ba_buffer_entries(arch);
 
-	/* If we just remove our entry, there'll be a space 	*
-	 * in the data block for our file data. Therefore, 		*
-	 * we decrease the ->file_data->__start in every entry	*
-	 * after this one by the size of the entry we are 		*
-	 * removing.											*/
-
-	if ((*rm_entry)->file_data)
-	{
-		__ba_shift(*rm_entry, (*rm_entry)->file_data->__size);
-	}
-	else
-	{
-		__ba_shift(*rm_entry, ba_treesize( (*rm_entry) ));
-	}
-
 	if ((*rm_entry)->type == ba_EntryType_FILE)
 	{
 		bael_remove  (arch, (*rm_entry));		/* We have to de-reference it since rm_entry is a double pointer. */
@@ -614,48 +708,6 @@ void ba_remove(BoxArchive *arch, ba_Entry **rm_entry)
 
 error:
 	return;
-}
-
-void __ba_shift(ba_Entry *start_entry, fsize_t amount)
-{
-	/* Use with extreme care */
-
-	/* This function goes from the current entry 	*
-	 * up to the end of the entry tree, 			*
-	 * subtracting 'amount' from each entry's		*
-	 * ->file_data->__start.						*/
-
-	ba_Entry *current = start_entry;
-
-	while (current)
-	{
-		if (current->file_data != NULL)
-		{
-			current->file_data->__start -= amount;
-		}
-
-		if (current->child_entries != NULL)
-		{
-			current = current->child_entries;
-		}
-		else if (current->next != NULL)
-		{
-			current = current->next;
-		}
-		else
-		{
-			/* If we're at the end of the current directory,	*
-			 * then go up a level. If we're at the end of the	*
-			 * toplevel directory, the loop will end.			*/
-
-			if (current->parent_dir == NULL)
-			{
-				break;
-			}
-
-			current = current->parent_dir->next;
-		}
-	}
 }
 
 fsize_t ba_treesize(ba_Entry *dir)
