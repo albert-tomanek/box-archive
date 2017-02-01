@@ -679,12 +679,6 @@ void ba_remove(BoxArchive *arch, ba_Entry **rm_entry)
 	check(arch, "Null-pointer given for 'BoxArchive *arch' to ba_remove().");
 	check(*rm_entry != NULL, "Null-pointer given for 'ba_Entry **rm_entry' to ba_remove().");
 
-	/* Load entries from the file into buffer, 	*
-	 * else we'd lose their start position 		*
-	 * after calling __ba_shift().				*/
-
-	__ba_buffer_entries(arch);
-
 	if ((*rm_entry)->type == ba_EntryType_FILE)
 	{
 		bael_remove  (arch, (*rm_entry));		/* We have to de-reference it since rm_entry is a double pointer. */

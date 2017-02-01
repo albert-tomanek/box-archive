@@ -1,0 +1,161 @@
+How it works
+============
+(NOTE: Accurate as of c31.2)
+
+The BoxArcive struct
+--------------------
+A box archive in memory is represented by a BoxArchive struct,
+which looks like this:
+
+struct BoxArchive {
+	char *loc;
+	char *header;
+
+	FILE *file;
+
+	ba_Entry *entry_list;
+	fsize_t  __data_size;
+};
+
+->loc points to the address of the file
+to which the archive has been written to / read from last.
+Writing the archive to a file will change ->loc;
+If the archive is new, ->loc is NULL.
+
+->header points to a copy of the loaded archive's XML
+header in memory. This is not updated until the archive is later saved.
+The header is updated by calling __ba_create_header() on the archive file.
+__ba_create_header() essentially goes through each entry in the entry tree,
+creating an EzXML node for each one, and then generates the XML text by calling
+ezxml_toxml().
+
+->file points to the open file.
+BoxArchive functions seek to different offsets in the file.
+When creating a new archive with ba_new(), the file is closed and therefore NULL.
+The only functions that expect ->file to be open are functions that read from an archive file.
+Calling ba_open() or ba_save() will change ->file.
+Calling ba_close will safely close ->file.
+
+->entry_list (soon to be called ->entry_tree) points to
+the archive's entry tree in memory.
+
+->data_size stores the total size of all the files in the archive,
+no matter if they are in buffer, a file in the filesystem, or a file in the open archive.
+Every time a file is added/loaded its ->file_data->__start is set to arch->__data_size (the current end of the data chunk),
+and the file's size is added to arch->data size.
+
+arch->__data_size gets incremented by:
+ - Adding a file with ba_add_file()
+ - __ba_process_xml_dir() when loading an archive
+ - ba_load_fs_tree() when loading a filesystem into the entry tree, if *data_size the pointer is given.
+
+
+The Entry Tree
+--------------
+While a Box archive is loaded in memory,
+its file structure is loaded from the header XML file as a tree of linked lists in memory.
+Each entity is represented by a ba_Entry struct, which can represent either a file or a directory.
+This is what the ba_Entry struct looks like:
+
+struct ba_Entry {
+	enum  ba_EntryType type;
+
+	char *__orig_loc;		/* If this entry is a file, this will contain the location of the original file, so that the ba_save() knows where to read the file's data from when creating the archive. */
+
+	/* Metadata */
+	char *path;		/* The full path (eg. "/tmp/myProg/file.dat"). WILL contain a '/' at the end if it is a directory. The string will be on heap and therefore will be freed when ba_entry_free() is called. */
+	char *name;		/* The file name (eg. "file.dat"). Will also be on heap.	*/
+
+	/* Pointers */
+	struct ba_File  *file_data;		/* Start and length of the file. NULL if the entry is not a file */
+	struct ba_Entry *parent_dir;		/* Pointer to parent directory. NULL if in root */
+	struct ba_Entry *child_entries;	/* Pointer to the first file in this directory. NULL if this entry is not a directory. */
+
+	struct ba_Entry *next;				/* Pointer to the next entry */
+};
+
+->type specifies whether the entry represents a file or a directory.
+It should be either ba_EntryType_FILE or ba_EntryType_DIR.
+If it is 0 (be_EntryType_UNSPECIFIED), it will be ignored.
+
+If a file has been newly added to the archive,
+it will not be loaded into a buffer, but its location
+in the filesystem will be pointed to by ->__orig_loc.
+More on this later.
+
+->path is the location of the file within the archive.
+Examples would be: "file.dat" (the file is int he toplevel directory),
+                   "media/pictures/cool stuff/DSC_0481.JPG"
+Note on Windows they would be back-slashes,
+because the path is split by BA_SEP,
+which varies by platform.
+
+->name is the name of the entry.
+For the file "media/pictures/cool stuff/DSC_0481.JPG" this would be "DSC_0481.JPG",
+and for the directory "fonts/ttf/" this would be "ttf".
+NOTE: Both ->path and ->name are malloc()'ed so they also need to be free()'d.
+
+->file_data points to the struct describing the file.
+If the entry is a directory, this will be NULL.
+
+->parent_dir points to the entry's parent entry.
+If this entry is in the toplevel directory, ->parent_dir will be NULL.
+
+If the entry is a directory, ->child_entries points to the begining
+of the linked list of the directory's child entries.
+If the entry does not have any child entries,
+or the entry is a file, ->child_entries is NULL.
+
+->next points to the next entry in the directory.
+If this entry is the last entry in the directory, ->next is NULL.
+
+This is what the ba_File struct looks like:
+
+struct ba_File
+{
+  uint8_t *buffer;
+
+  offset_t __size;
+  offset_t __start;
+  offset_t __old_start;
+};
+
+A file in a BoxArchive in memory can be in one of three places:
+ - Already in the archive file
+ - In buffer
+ - On the filesystem
+
+ +---------------------------+--------------------------+--------------------+---------------------+
+ |                           |      In arch. file       |     In buffer      |    On filesystem    |
+ +---------------------------+--------------------------+--------------------+---------------------+
+ | entry->file_data->__size  |        File size         |     File size      |      File size      |
+ +---------------------------+--------------------------+--------------------+---------------------+
+ | entry->file_data->__start | Start pos. in data chunk | Start pos. when    | Start pos. when     |
+ |                           |                          | written to archive | written to archive  |
+ +---------------------------+--------------------------+--------------------+---------------------+
+ | entry->file_data->buffer  |           NULL           |    The file data   |         NULL        |
+ +---------------------------+--------------------------+--------------------+---------------------+
+ | entry->__orig_loc         |           NULL           |         NULL       | Loc. of source file |
+ +---------------------------+--------------------------+--------------------+---------------------+
+
+->__old_start should be generally ignored.
+It is used briefly within ba_save(), between ba_rearrange()
+and __ba_save_archive_file() to store the start of the file in the source archive.
+
+For a depiction of the entry tree, have a look at doc/BoxArchive.
+
+Buffers
+-------
+If a file is being modified, or its source archive is being overwritten,
+it is read into a buffer in memory (->file_data->buffer).
+
+File sources
+------------
+When saving an entry:
+ - If the file has just been added and isn't in the archive file yet,
+   its content is obtained from reading ->__orig_loc.
+ - If the file has been changed since loaded, or the source archive is being overwritten,
+   its content is obtained from ->file_data->buffer.
+ - If the file has not been modified since it was read, ->__orig_loc and ->file_data->buffer
+   are null-pointers and its data is obtained from the data chunk in arch->file at
+   the offset of ->file_data->__start.

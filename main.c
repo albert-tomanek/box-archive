@@ -263,6 +263,8 @@ int main (int argc, char *argv[])
 	if (dest)		free(dest);
 	if (src)		free(src);
 	if (path)		free(path);
+	if (start_entry)free(start_entry);
+	if (start_entry_path) free(start_entry_path);
 	if (boxfile)	free(boxfile);
 
 	return 0;
@@ -273,6 +275,7 @@ error:
 	if (dest)		free(dest);
 	if (src)		free(src);
 	if (path)		free(path);
+	if (start_entry_path) free(start_entry_path);
 	if (boxfile)	free(boxfile);
 
 	return 1;
