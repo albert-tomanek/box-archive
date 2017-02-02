@@ -109,9 +109,12 @@
 				current->child_entries = NULL;
 				current->__orig_loc    = dupcat(root_path, current->path, "", "");		/* eg. '/tmp/test/' + 'directory/file.dat'. This string us used so that ba_save() knows where to read the source file from when writing to the archive. */
 
+				check(current->file_data, "Out of memory (malloc() returned NULL).");
+
 				current->file_data->buffer  = NULL;
 				current->file_data->__size  = ba_fsize(current->__orig_loc);		/* These are ESSENTIAL. Without them __ba_create_archive_file() would crash and burn. */
 				current->file_data->__start = *data_size;
+				current->file_data->__old_start = -1;
 
 				if (data_size)	*data_size += current->file_data->__size;			/* If they dive us a null-pointer to data_size, we'd fet a seg-fault if we tried to increment it. */
 			}

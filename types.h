@@ -7,8 +7,11 @@
 
   #include <stdint.h>
 
-  #define fsize_t	uint64_t
-  #define offset_t 	uint64_t
-  #define hdrlen_t 	uint16_t
+  /* These are signed (therefore going only to 9,223,372,036,854,775,807 bytes),	*
+   * so that it can be signalled that they have not been set yet by being set to -1	*/
+
+  #define fsize_t	int64_t
+  #define offset_t 	int64_t
+  #define hdrlen_t 	int16_t
 
 #endif

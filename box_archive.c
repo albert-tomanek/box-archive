@@ -172,18 +172,6 @@ void __ba_save_entry_dir(ba_Entry *first_entry, FILE *infile, FILE *outfile, fsi
 				continue;
 			}
 
-			if (	(current_entry->file_data->buffer      == NULL)
-			/*	&&	(current_entry->file_data->__old_start == 0)	*/	/* Hmm... I can't do this, because if the data was at the start of the data block, this would be 0 too... [FIXME] */
-				&&	(current_entry->__orig_loc             == NULL))
-			{
-				/* Skip if we haven't got a source for the file data. */
-
-				log_err("No source for \"%s\" found.", current_entry->path);
-
-				current_entry = current_entry->next;
-				continue;
-			}
-
 			/* NOTE: The if...elseif...else must be in this order,				*
 			 *       because data in the buffer has the highest priority.		*
 			 *		 If an entry had both ->__orig_loc and ->file_data->buffer,	*
@@ -225,7 +213,7 @@ void __ba_save_entry_dir(ba_Entry *first_entry, FILE *infile, FILE *outfile, fsi
 
 				current_file  = NULL;
 			}
-			else if (current_entry->file_data->__old_start)
+			else if (0 <= current_entry->file_data->__old_start)
 			{
 				/* If the data is to be read from the source archive */
 
@@ -240,6 +228,13 @@ void __ba_save_entry_dir(ba_Entry *first_entry, FILE *infile, FILE *outfile, fsi
 					fputc(byte, outfile);
 				}
 
+			}
+			else
+			{
+				log_err("No source for \"%s\" found.", current_entry->path);
+
+				current_entry = current_entry->next;
+				continue;
 			}
 
 			/* Increment the total_size by the currenf file's size,		*
@@ -538,9 +533,10 @@ ba_Entry* __ba_get_file_metadata(ezxml *file_node, ba_Entry *parent_dir)
 	file_entry->path = joint_file_name;		/* Note: the string will be freed when the struct is freed.	*/
 	file_entry->type = ba_EntryType_FILE;
 
-	file_data->buffer   = NULL;						/* The file will only be loaded into memory if it is being modified, or if the source archive file is being overwritten. */
-	file_data->__size   = atoi( ezxml_attr(file_node, "size")  );
-	file_data->__start  = atoi( ezxml_attr(file_node, "start") );
+	file_data->buffer      = NULL;						/* The file will only be loaded into memory if it is being modified, or if the source archive file is being overwritten. */
+	file_data->__size      = atoi( ezxml_attr(file_node, "size")  );
+	file_data->__start     = atoi( ezxml_attr(file_node, "start") );
+	file_data->__old_start = -1;
 
 	return file_entry;
 
@@ -629,6 +625,8 @@ void ba_add_file(BoxArchive *arch, ba_Entry **parent_entry, char *file_name, cha
 
 	ba_Entry *add_entry = malloc(sizeof(ba_Entry));
 
+	check(add_entry, "Out of memory (malloc() returned NULL).");
+
 	add_entry->type       = ba_EntryType_FILE;
 	add_entry->__orig_loc = strdup(loc);
 	add_entry->path       = dupcat((*parent_entry)->path ? (*parent_entry)->path : "", file_name, "", "");
@@ -637,8 +635,11 @@ void ba_add_file(BoxArchive *arch, ba_Entry **parent_entry, char *file_name, cha
 	add_entry->parent_dir = *parent_entry;	/* Doesn't matter if it's NULL */
 	add_entry->child_entries = NULL;
 
+	check(add_entry->file_data, "Out of memory (malloc() returned NULL).");
+
 	add_entry->file_data->__size  = ba_fsize(add_entry->__orig_loc);		/* These are ESSENTIAL. Without them __ba_create_archive_file() would crash and burn. */
-	add_entry->file_data->__start = 0;					/* 0 for now, because we haven't been saved to a file yet. */
+	add_entry->file_data->__start = -1;					/* -1 for now, because we haven't been saved to a file yet. */
+	add_entry->file_data->__old_start = -1;				/* See 'doc/howitworks.txt' for info about ->__old_start */
 
 	arch->__data_size += add_entry->file_data->__size;				/* Increment the overall size by our size, so that other files can beadded to the NEW end of the data chunk */
 
