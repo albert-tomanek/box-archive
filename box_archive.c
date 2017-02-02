@@ -70,8 +70,9 @@ void ba_save(BoxArchive *arch, char *loc)
 	{
 		if (! strcmp(arch->loc, loc))
 		{
-			/* If we are overwriting the original file,						*
-			 * load all the file data from the original file into buffer. 	*/
+			/* If we are overwriting the original file,	load all the file data 	*
+			 * from the original file into buffer.								*
+			 * Otherwise we wouldn't have a source for them.					*/
 
 			__ba_buffer_entries(arch);
 		}
@@ -609,8 +610,7 @@ void ba_add(BoxArchive *arch, ba_Entry **parent_entry, ba_Entry *add_entry)
 	 * is correctly filled in, otherwise there will be	*
 	 * errors at later stages. You are urged to use		*
 	 * ba_add_file() & ba_add_dir() unless you know		*
-	 * what you're doing. Also, ba_add_file increments 	*
-	 * arch->__data_size by the right amount.			*/
+	 * what you're doing.								*/
 
 	check(parent_entry, "Null pointer given for ba_Entry **parent_entry to ba_add().");
 	check(add_entry   , "Null pointer given for ba_Entry *add_entry to ba_add().");
@@ -672,9 +672,7 @@ error:
 
 void ba_remove(BoxArchive *arch, ba_Entry **rm_entry)
 {
-	/* Removes (deletes) rm_entry from its archive. *
-	 * Currently 'BoxArchive *arch' is not used,	*
-	 * but it may be needed in the future.			*/
+	/* Removes (deletes) rm_entry from its archive. */
 
 	check(arch, "Null-pointer given for 'BoxArchive *arch' to ba_remove().");
 	check(*rm_entry != NULL, "Null-pointer given for 'ba_Entry **rm_entry' to ba_remove().");
@@ -691,6 +689,7 @@ void ba_remove(BoxArchive *arch, ba_Entry **rm_entry)
 
 	if ((*rm_entry)->file_data)
 	{
+		arch->__data_size -= (*rm_entry)->file_data->__size;	/* Subtract the size of the file from the total */
 		free((*rm_entry)->file_data);
 	}
 
@@ -703,6 +702,37 @@ void ba_remove(BoxArchive *arch, ba_Entry **rm_entry)
 error:
 	return;
 }
+
+void ba_move(BoxArchive *arch, ba_Entry *src_entry, ba_Entry **dest_entry)
+{
+	/* Moves the entry at *src_entry into *dest_dir.*
+	 * Works for directories too.					*
+	 * Currently 'BoxArchive *arch' is not used,	*
+	 * but it may be needed in the future.			*/
+
+	check(arch, "Null-pointer given for 'BoxArchive *arch' to ba_remove().");
+	check(src_entry != NULL,  "Null-pointer given for 'ba_Entry *src_entry' to ba_move().");
+	check(dest_entry != NULL, "Null-pointer given for 'ba_Entry *dest_entry' to ba_move().");
+
+	bael_remove(arch, src_entry);		/* baEL_remove(). This doesn't do the fancy stuff that ba_remove does; this is what we want. */
+
+	if ((*dest_entry)->type == ba_EntryType_DIR)
+	{
+		bael_add(&((*dest_entry)->child_entries), src_entry);
+	}
+	if ((*dest_entry)->type == ba_EntryType_FILE)
+	{
+		ba_add(arch, &((*dest_entry)->parent_dir), src_entry);
+		ba_remove(arch, dest_entry);
+		*dest_entry = src_entry;
+	}
+
+	return;
+
+error:
+	return;
+}
+
 
 fsize_t ba_treesize(ba_Entry *dir)
 {

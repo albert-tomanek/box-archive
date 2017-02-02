@@ -2,7 +2,7 @@ The BOX Archiver
 ================
 
 The BOX archive is a new archive format developed by Albert Tomanek to replace the ageing TAR format.
-It makes use of an XML file header to store the its hierarchy,
+It makes use of an XML file header to store the its file hierarchy,
 and therefore the metadata about any file in the archive can be obtained without having to read the whole file.
 This is a major advantage over the TAR format.
 
@@ -25,6 +25,8 @@ COMING SOON
 The following features are planned for future
 versions of the BoxArchive library:
  - Unix file permissions
+ - Overflow directory for large files when overwriting source archive.
+ - File synchronisation (like Windows briefcase files)
  - Soft links
  - Per-file compression using Google Snappy [https://github.com/google/snappy]
 

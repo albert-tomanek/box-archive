@@ -16,7 +16,7 @@ int main (int argc, char *argv[])
 	BoxArchive *archive = NULL;
 
 	char  arg;
-	char *dest = NULL;	/* Where to extract to */
+	char *dest = NULL;	/* Where to extract/move to */
 	char *src  = NULL;	/* Where to get files from */
 	char *path = NULL;	/* The path of a single file within the archive */
 	char *boxfile = NULL;
@@ -44,7 +44,7 @@ int main (int argc, char *argv[])
 		return 0;
 	}
 
-	while ((arg = getopt(argc, argv, "lc:x:f:F:drTH")) != -1)
+	while ((arg = getopt(argc, argv, "lc:x:f:F:drm:TH")) != -1)
 	{
 	switch (arg)
 	{
@@ -93,6 +93,15 @@ int main (int argc, char *argv[])
 		case 'r':
 		{
 			job = REMOVE;
+
+			break;
+		}
+
+		case 'm':
+		{
+			job = MOVE;
+
+			dest = strdup(optarg);
 
 			break;
 		}
@@ -181,6 +190,22 @@ int main (int argc, char *argv[])
 			break;
 		}
 
+		case MOVE:
+		{
+			if (! boxfile)          { fprintf(stderr, "Use the -f argument to specify which .box file you want to extract.\n"); break; }
+			if (! start_entry_path) { fprintf(stderr, "Use the -F argument to specify which file or directory you want to remove.\n"); break; }
+			if (! archive) break;
+
+			ba_Entry *mv_entry   = ba_get(archive, start_entry_path);
+			ba_Entry *dest_entry = ba_get(archive, dest);
+			if     (! mv_entry)   { fprintf(stderr, "Entry '%s' not found.\n", start_entry_path); break; }
+			if     (! dest_entry) { fprintf(stderr, "Entry '%s' not found.\n", dest); break; }
+			ba_move(archive, mv_entry, &dest_entry);
+
+			ba_save(archive, boxfile);
+
+		}
+
 		case LIST:
 		{
 			if (! boxfile) { fprintf(stderr, "Use the -f argument to specify which .box file you want to use.\n"); break; }
@@ -198,10 +223,10 @@ int main (int argc, char *argv[])
 		case DETAILS:
 		{
 			if (! boxfile) { fprintf(stderr, "Use the -f argument to specify which .box file you want to use.\n"); break; }
-
 			ba_Entry *entry = ba_get(archive, start_entry_path);
 
 			if (! entry) { fprintf(stderr, "Entry not found.\n"); break; }
+
 
 			printf("Type:\t%s\n", ba_entry_nice_type(entry->type) );
 			printf("Name:\t%s\n", entry->name);
@@ -367,6 +392,8 @@ void help(char *progname)
 {
 	printf(" The BOX archiver.\n");
 	printf(" \n");
+	printf(" (Note: 'entry' means file OR directory.)\n");
+	printf(" \n");
 	printf(" Format:\n");
 	printf("   %s [-hvl] [Argument params] -f <BOX archive>\n", progname);
 	printf(" \n");
@@ -374,12 +401,13 @@ void help(char *progname)
 	printf("   -H			Print the header XML of an archive.\n");
 	printf("   -T			Print the Type/version of an archive.\n");
 	printf("   -l			List the files in the archive.\n");
-	printf("   -r			Remove a file/direcotry.\n");
 	printf("   -f <arch>	Use this archive file.\n");
 	printf("   -x <dest>	Extract the files to the given destination.\n");
 	printf("   -c <src>		Create an archive from the given directory.\n");
-	printf("   -d <path>	Show a file's details.\n");
-	printf("   -F <path>	Work only with this entry in the archive.\n");
+	printf("   -r			Remove the entry specified by -F.\n");
+	printf("   -m <dest>	Move the entry specified by -F to <dest>.\n");
+	printf("   -d			Show a file's details (file specified by -F).\n");
+	printf("   -F <path>	Operate on THIS entry.\n");
 	printf(" \n");
 	printf("   -v			Print the archiver's version.\n");
 	printf("   -h			Print this help text.\n");

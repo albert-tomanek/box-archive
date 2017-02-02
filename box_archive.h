@@ -41,9 +41,10 @@
   void 		ba_add		(BoxArchive *arch, ba_Entry **parent_entry, ba_Entry *add_entry);				/* Adds 'add_entry' to the directory 'parent_entry'. Note: it's prefered to use ba_add_file() and ba_add_dir() instead. */
   void 		ba_add_file	(BoxArchive *arch, ba_Entry **parent_entry, char *file_name, char *loc);
   void 		ba_add_dir	(BoxArchive *arch, ba_Entry **parent_entry, char *dir_name);
+  void		ba_move		(BoxArchive *arch, ba_Entry  *src_entry, ba_Entry **dest_entry);
   void 		ba_remove	(BoxArchive *arch, ba_Entry **rm_entry);					/* Delete a file from an archive */
 
-  int 		ba_extract(BoxArchive *arch, ba_Entry *file_entry, char *dest);		/* Extract the file at the given path in the given archive, to the given place in the filesystem. Returns 1 if an error occured. */
+  int 		ba_extract(BoxArchive *arch, ba_Entry *file_entry, char *dest);		/* Extract a SINGLE file at the given path in the given archive, to the given place in the filesystem. Returns 1 if an error occured. */
 
   fsize_t   ba_treesize(ba_Entry *start_entry);			/* Returns the size of all the files in the tree given to it */
   char*  	ba_get_header(BoxArchive *arch);			/* Returns pointer to heap; don't forget to free() it */

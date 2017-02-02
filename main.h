@@ -4,7 +4,7 @@
 
   #include "box_archive.h"
 
-  #define BOX_ARCHIVER_VERSION "v0.07 Dev alpha"
+  #define BOX_ARCHIVER_VERSION "v0.09 Dev alpha"
   #define BOX_ARCHIVER_LICENSE "GPLv3"
 
   enum Job {
@@ -12,6 +12,7 @@
 	  CREATE,
 	  EXTRACT,
 	  REMOVE,
+	  MOVE,
 	  LIST,
 	  DETAILS,
 	  GET_FORMAT,
