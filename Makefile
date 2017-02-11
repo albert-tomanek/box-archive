@@ -1,25 +1,42 @@
+# http://stackoverflow.com/questions/2734719/how-to-compile-a-static-library-in-linux
+
 TARGET = box
+LIBVER = 0.09
+LIBNAME = libboxarchive.$(LIBVER).a
 LIBS =
 CC = gcc
-CFLAGS = -g -O0 -Wall -Wno-discarded-qualifiers -Wno-deprecated-declarations -Wno-unused-label
+CFLAGS = -g -Wall -Wno-discarded-qualifiers -Wno-deprecated-declarations -Wno-unused-label
 EZXML = ezxml
 
-.PHONY: default all clean
+.PHONY: default all clean lib
 
 default: $(TARGET)
 all: default
 
-OBJECTS = main.o ezxml/ezxml.o box_archive.o file.o entry.o entrylist.o filesystem.o dupcat.o byteorder.o
+LIBFILES = box_archive.o file.o entry.o entrylist.o filesystem.o dupcat.o byteorder.o
+OBJECTS = main.o
 HEADERS = main.h ezxml/ezxml.h box_archive.h file.h entry.h entrylist.h filesystem.h dupcat.h byteorder.h positions.h errors.h dbg.h
+
+EZXML_DIR = ezxml
+EZXML_LIB = $(EZXML_DIR)/libezxml.a
+EZXML_OBJ = ezxml.o
 
 %.o: %.c $(HEADERS)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 .PRECIOUS: $(TARGET) $(OBJECTS)
 
-$(TARGET): $(OBJECTS)
-	$(CC) $(OBJECTS) -Wall $(LIBS) -o $@
+lib: $(LIBFILES)
+	make -C $(EZXML_DIR)
+	ar -x $(EZXML_LIB)
+	#$(CC) $(LIBFILES) -fPIC -Wall	# -fPIC = Emit position-independent code (for dynamic linking)
+	ar -rcs $(LIBNAME) $(EZXML_OBJ) $(LIBFILES)
+
+$(TARGET): $(OBJECTS) lib			# These arguments (eg $(OBJECTS)) are the things that need to be done before the following code can be done
+	$(CC) $(OBJECTS) $(LIBNAME) -Wall $(LIBS) -o $@
 
 clean:
+	make -C $(EZXML_DIR) clean
 	-rm -f *.o
+	-rm -f $(LIBNAME)
 	-rm -f $(TARGET)
