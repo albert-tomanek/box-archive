@@ -18,7 +18,7 @@ CONTRIBUTING
 ============
 If you want to learn about how the BoxArchive library works,
 or want to develop it/contribute code, have a look at 'doc/howitworks.txt'.
-You should also look at the source code, which is mostly well-documented.
+You should also look at the source code, which is well-documented in most places.
 
 COMING SOON
 ===========
@@ -50,6 +50,13 @@ make
 
 To run:
 ./box
+
+If all you want to compile is the library,
+and not the box archiver with it, run:
+make lib
+
+And finally to clean:
+make clean
 
 FILES
 =====
