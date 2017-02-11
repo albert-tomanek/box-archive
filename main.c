@@ -301,8 +301,7 @@ int main (int argc, char *argv[])
     if (dest)        free(dest);
     if (src)        free(src);
     if (path)        free(path);
-    if (start_entry)free(start_entry);
-    if (start_entry_path) free(start_entry_path);
+    if (start_entry_path) free(start_entry_path);		/* We don't free start_entry, because that's already been freed by ba_close(). */
     if (outfile)    free(outfile);
     if (boxfile)    free(boxfile);
 
@@ -314,7 +313,6 @@ error:
     if (dest)        free(dest);
     if (src)        free(src);
     if (path)        free(path);
-    if (start_entry)free(start_entry);
     if (start_entry_path) free(start_entry_path);
     if (outfile)    free(outfile);
     if (boxfile)    free(boxfile);
