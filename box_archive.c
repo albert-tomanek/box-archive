@@ -53,7 +53,7 @@ BoxArchive* ba_new()
 	arch->loc        = NULL;		/* Hasn't been saved anywhere yet */
 	arch->header     = NULL;
 	arch->file       = NULL;
-	arch->entry_list = NULL;
+	arch->entry_tree = NULL;
 	arch->__data_size= 0;
 
 	return arch;
@@ -120,7 +120,7 @@ int __ba_create_archive_file(BoxArchive *arch, char *loc)
 
 	arch->__data_size = 0;		/* I know that __ba_rearrange() already does this, sorry! */
 
-	__ba_save_entry_dir(arch->entry_list, arch->file, outfile, &(arch->__data_size));	/* Note: arch->file has not been changed yet, so it will still be the source archive. */
+	__ba_save_entry_dir(arch->entry_tree, arch->file, outfile, &(arch->__data_size));	/* Note: arch->file has not been changed yet, so it will still be the source archive. */
 
 	fwrite(end_of_file, sizeof(end_of_file), 1, outfile);
 
@@ -272,7 +272,7 @@ void __ba_rearrange(BoxArchive *arch)
 
 	arch->__data_size = 0;
 
-	__ba_rec_rearrange_func(arch->entry_list, &(arch->__data_size));
+	__ba_rec_rearrange_func(arch->entry_tree, &(arch->__data_size));
 
 	return;
 
@@ -328,7 +328,7 @@ void __ba_buffer_entries(BoxArchive *arch)
 
 	check(arch, "Null-pointer given to __ba_buffer_entries().");
 
-	__ba_buffer_dir(arch, arch->entry_list);
+	__ba_buffer_dir(arch, arch->entry_tree);
 
 	return;
 
@@ -433,7 +433,7 @@ BoxArchive* ba_open(char *loc)
 	arch->header = __ba_load_header(arch->file);
 
 	/* Read the metadata from the header */
-	__ba_load_dir_tree(&arch->__data_size, arch->header, &arch->entry_list);
+	__ba_load_dir_tree(&arch->__data_size, arch->header, &arch->entry_tree);
 
 	return arch;
 
@@ -777,7 +777,7 @@ void __ba_create_header(BoxArchive *arch)
 	ezxml *xml  = ezxml_new("header");
 	check(xml, "Error creating XML header: %s", ezxml_error(xml));
 
-	__ba_dir_entry_to_xml(xml, arch->entry_list);
+	__ba_dir_entry_to_xml(xml, arch->entry_tree);
 
 	if (arch->header)	free(arch->header);		/* Frees the old header if one exists */
 	arch->header = 	ezxml_toxml(xml);
@@ -836,7 +836,7 @@ ba_Entry* ba_get_entries(BoxArchive *arch)
 {
 	check(arch, "Null pointer given to ba_get_entries().");
 
-	return arch->entry_list;	/* This is the real thing, not a copy, so be careful with it */
+	return arch->entry_tree;	/* This is the real thing, not a copy, so be careful with it */
 
 error:
 	return NULL;
@@ -847,7 +847,7 @@ ba_Entry* ba_get(BoxArchive *arch, char *path)
 	check(arch, "Null pointer given for BoxArchive *arch to ba_get().");
 	check(path, "Null pointer given for char *orig_path to ba_get().");
 
-	ba_Entry *return_entry = __ba_get_rec_func(arch->entry_list, path);
+	ba_Entry *return_entry = __ba_get_rec_func(arch->entry_tree, path);
 
 	return    return_entry;
 
@@ -985,7 +985,7 @@ void ba_close(BoxArchive *arch)
 
 		/* Call other free functions */
 		if (arch->file)			fclose(arch->file);
-		if (arch->entry_list)	bael_free(&arch->entry_list);
+		if (arch->entry_tree)	bael_free(&arch->entry_tree);
 
 		free(arch);
 	}

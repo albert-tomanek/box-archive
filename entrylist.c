@@ -41,7 +41,7 @@ void bael_remove(BoxArchive *arch, ba_Entry *rm_entry)
 	check(arch, "Null-pointer given for *arch to bael_remove().");
 	check(rm_entry  , "Null-pointer given for *rm_entry to bael_remove().");
 
-	ba_Entry **first_entry = (rm_entry->parent_dir != NULL) ? &(rm_entry->parent_dir->child_entries) : &(arch->entry_list);		/* If an entry is in the toplevel directory, *first_entry is arch->entry_list */
+	ba_Entry **first_entry = (rm_entry->parent_dir != NULL) ? &(rm_entry->parent_dir->child_entries) : &(arch->entry_tree);		/* If an entry is in the toplevel directory, *first_entry is arch->entry_tree */
 
 	if (*first_entry == rm_entry)
 	{

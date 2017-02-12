@@ -22,7 +22,7 @@ int main (int argc, char *argv[])
     char *boxfile = NULL;    /* Source archive */
     char *outfile = NULL;    /* Archive to save to */
     char *start_entry_path= NULL;
-    ba_Entry *start_entry = NULL;    /* This is the entry which we work with. Unless the '-F' flag is used, this will be archive->entry_list. */
+    ba_Entry *start_entry = NULL;    /* This is the entry which we work with. Unless the '-F' flag is used, this will be archive->entry_tree. */
     enum Job job;
 
     if (argc < 2)
@@ -153,7 +153,7 @@ int main (int argc, char *argv[])
     }
     else
     {
-        start_entry = ba_get_entries(archive);    /* This just gives us archive->entry_list */
+        start_entry = ba_get_entries(archive);    /* This just gives us archive->entry_tree */
     }
 
     /* Now do the specified job */
@@ -167,7 +167,7 @@ int main (int argc, char *argv[])
             /* Hopefully the API will provide a nicer way    *
              * to do this in the future...                    */
 
-            ba_load_fs_tree(src, &(archive->entry_list), &(archive->__data_size));
+            ba_load_fs_tree(src, &(archive->entry_tree), &(archive->__data_size));
 
             ba_save(archive, outfile);
 

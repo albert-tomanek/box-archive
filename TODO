@@ -1,7 +1,6 @@
  - Implement ba_add(), and other functions to do with the entry tree.
  - Add and use macro to append '/' to string only if it doesn't already end in one.
  - Remove the need for ba_extract() to be given a pointer to BoxArchive *arch?
- - Rename BoxArchive->entry_list to BoxArchive->entry_tree
  - Make ba_get_entries() return a double pointer.
  - Make offset_t signed, so that it can be set to -1 when it hasn't been set yet.
  - ba_extract() from buffer rather than file, if buffer is existent.

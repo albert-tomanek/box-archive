@@ -21,8 +21,8 @@
 
 	  FILE *file;
 
-	  ba_Entry *entry_list;		/* The entry tree with file, dirs, and their metadata */
-	  fsize_t  __data_size;		/* The size of the whole data chunk in total. Data chunk doesn't exisi if *entry_list is NULL.*/
+	  ba_Entry *entry_tree;		/* The entry tree with file, dirs, and their metadata */
+	  fsize_t  __data_size;		/* The size of the whole data chunk in total. Data chunk doesn't exisi if *entry_tree is NULL.*/
 	  							/* NOTE: While the archive is open, this stores the size of all files INCLUDING the ones that are not stored in buffer but are referred to by entry->__orig_loc. Functions that increment this value: ba_add_file(),  */
   };
 
