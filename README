@@ -24,6 +24,7 @@ COMING SOON
 ===========
 The following features are planned for future
 versions of the BoxArchive library:
+ - Tests
  - Unix file permissions
  - Overflow directory for large files when overwriting source archive.
  - File synchronisation (like Windows briefcase files)

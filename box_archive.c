@@ -881,6 +881,89 @@ ba_Entry* __ba_get_rec_func(ba_Entry *first_entry, char *path)
 	return NULL;
 }
 
+uint8_t* ba_get_file_contents(BoxArchive *arch, ba_Entry *entry, fsize_t *size)
+{
+	/* This function returns a copy of the file's contents,	*
+	 * and sets *size to the size of the returned data.		*
+	 * For text files use ba_get_textfile_contents().		*/
+
+	check(arch, "Null-pointer given to ba_get_file_contents() for 'BoxArchive *arch'.");
+	check(entry, "Null-pointer given to ba_get_file_contents() for 'ba_Entry *entry'.");
+
+	if (entry->type != ba_EntryType_FILE)
+	{
+		return NULL;
+	}
+
+	/* Set the size */
+	*size = entry->file_data->__size;
+
+	/* Load the buffer if necessary */
+	if (! entry->file_data->buffer)							/* Technically, we don't need the if statement here, but I added it anyway just for code clarity. */
+	{
+		__ba_buffer_file(arch, entry);
+	}
+
+	/* Return a copy of the buffer */
+	uint8_t *copy = malloc(entry->file_data->__size);
+	memcpy(copy, entry->file_data->buffer, entry->file_data->__size);
+
+	return copy;
+
+error:
+	return NULL;
+}
+
+char* ba_get_textfile_contents(BoxArchive *arch, ba_Entry *entry)
+{
+	/* This function is a wrapper around ba_get_file_contents()	*
+	 * which returns a null-terminated string instead of an		*
+	 * array of bytes. Particularly useful for textfiles.		*/
+
+	fsize_t size;
+	char *data = (char*) ba_get_file_contents(arch, entry, &size);
+
+	if (! data)
+		return NULL;
+
+	data = realloc(data, size+1);		/* Add a byte to the end, so that there's space for the null-term */
+
+	data[size] = '\0';
+	return data;
+}
+
+void ba_set_file_contents(BoxArchive *arch, ba_Entry *entry, uint8_t *data, fsize_t size)
+{
+	/* This function replaces a file entry's data 	*
+	 * with a copy of uint8_t *data.				*/
+
+	check(arch, "Null-pointer given to ba_get_file_contents() for 'BoxArchive *arch'.");
+	check(entry, "Null-pointer given to ba_get_file_contents() for 'ba_Entry *entry'.");
+	check(data, "Null-pointer given to ba_get_file_contents() for 'uint8_t *data'.");
+
+	/* Free the existing buffer if it exists.	*
+	 * I'm not using realloc because I don't	*
+	 * want to end up accidentally freeing		*
+	 * the memory.								*/
+
+	if (entry->file_data->buffer)
+	{
+		free(entry->file_data->buffer);
+	}
+
+	/* Store the size of the new data */
+	entry->file_data->__size = size;
+
+	/* Create enough memory */
+	entry->file_data->buffer = malloc(size);
+	memcpy(entry->file_data->buffer, data, size);
+
+	return;
+
+error:
+	return;
+}
+
 uint8_t ba_get_format(BoxArchive *arch)
 {
 	/* If the file is not a BOX archive, *

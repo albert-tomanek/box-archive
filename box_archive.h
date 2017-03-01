@@ -44,6 +44,10 @@
   void		ba_move		(BoxArchive *arch, ba_Entry  *src_entry, ba_Entry **dest_entry);
   void 		ba_remove	(BoxArchive *arch, ba_Entry **rm_entry);					/* Delete a file from an archive */
 
+  uint8_t*	ba_get_file_contents	(BoxArchive *arch, ba_Entry *entry, fsize_t *size);		/* Loads the file into buffer and returns the pointer to A COPY OF its data. sets *size to the size/length of the file data. Both this and its sister return a pointer to heap and must be freed.*/
+  char*		ba_get_textfile_contents(BoxArchive *arch, ba_Entry *entry);					/* A wrapper for ba_get_file_contents() for textfiles. */
+  void		ba_set_file_contents	(BoxArchive *arch, ba_Entry *entry, uint8_t *data, fsize_t size);	/* Replaces the data of an existing file entry with the data pointed to. */
+
   int 		ba_extract(BoxArchive *arch, ba_Entry *file_entry, char *dest);		/* Extract a SINGLE file at the given path in the given archive, to the given place in the filesystem. Returns 1 if an error occured. */
 
   fsize_t   ba_treesize(ba_Entry *start_entry);			/* Returns the size of all the files in the tree given to it */
