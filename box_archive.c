@@ -439,7 +439,7 @@ BoxArchive* ba_open(char *loc)
 
 error:
 
-	ba_close(arch);
+	/*ba_close(arch);*/
 
 	return NULL;
 }
@@ -935,6 +935,8 @@ char* ba_get_header(BoxArchive *arch)
 	 * archive's XML header.	*/
 
 	check(arch, "[ERROR] Null-pointer given to ba_get_header().");
+
+	__ba_create_header(arch);		/* The current header may not necessarily be up to date; update it. */
 
 	return strdup(arch->header);
 
