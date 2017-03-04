@@ -213,7 +213,7 @@ void __ba_save_entry_dir(ba_Entry *first_entry, FILE *infile, FILE *outfile, fsi
 
 				current_file  = NULL;
 			}
-			else if (0 <= current_entry->file_data->__old_start)
+			else if (current_entry->file_data->__old_start >= 0)
 			{
 				/* If the data is to be read from the source archive */
 
@@ -371,6 +371,10 @@ error:
 
 void __ba_buffer_file(BoxArchive *arch, ba_Entry *entry)
 {
+	/* This function loads a file's data from its archive file	*
+	 * into memory. IT DOES NOT LOAD THE FILE IF IT HAS BEEN 	*
+	 * NEWLY ADDED AND REFERED TO BY ->__orig_loc.				*/
+
 	check(arch,  "Null-pointer given to __ba_buffer_file() for BoxArchive *arch.");
 	check(entry, "Null-pointer given to __ba_buffer_file() for ba_Entry *entry.");
 
@@ -621,7 +625,7 @@ void ba_add_file(BoxArchive *arch, ba_Entry **parent_entry, char *file_name, cha
 {
 	/* Like ba_add() but fills in the struct for you.	*/
 
-	check(parent_entry, "Null pointer given for ba_Entry **parent_entry to ba_add_file().");
+	check(arch, "Null-pointer given to ba_add_file() for BoxArchive *arch.");
 
 	ba_Entry *add_entry = malloc(sizeof(ba_Entry));
 
@@ -629,21 +633,33 @@ void ba_add_file(BoxArchive *arch, ba_Entry **parent_entry, char *file_name, cha
 
 	add_entry->type       = ba_EntryType_FILE;
 	add_entry->__orig_loc = strdup(loc);
-	add_entry->path       = dupcat((*parent_entry)->path ? (*parent_entry)->path : "", file_name, "", "");
+	add_entry->path       = dupcat((parent_entry ? (*parent_entry)->path : ""), file_name, "", "");
 	add_entry->name       = strdup(file_name);
 	add_entry->file_data  = malloc(sizeof(ba_File));
-	add_entry->parent_dir = *parent_entry;	/* Doesn't matter if it's NULL */
+	add_entry->parent_dir = (parent_entry ? *parent_entry : NULL);		/* Doesn't matter if it's NULL */
 	add_entry->child_entries = NULL;
 
 	check(add_entry->file_data, "Out of memory (malloc() returned NULL).");
 
-	add_entry->file_data->__size  = ba_fsize(add_entry->__orig_loc);		/* These are ESSENTIAL. Without them __ba_create_archive_file() would crash and burn. */
+	add_entry->file_data->buffer  = NULL;								/* Initialize the buffer with NULL, so that we know that the buffer is not loaded. */
+	add_entry->file_data->__size  = ba_fsize(add_entry->__orig_loc);		/* v-- These are ESSENTIAL. Without them __ba_create_archive_file() would crash and burn. */
 	add_entry->file_data->__start = -1;					/* -1 for now, because we haven't been saved to a file yet. */
 	add_entry->file_data->__old_start = -1;				/* See 'doc/howitworks.txt' for info about ->__old_start */
 
 	arch->__data_size += add_entry->file_data->__size;				/* Increment the overall size by our size, so that other files can beadded to the NEW end of the data chunk */
 
-	bael_add(&((*parent_entry)->child_entries), add_entry);
+	if (parent_entry)
+	{
+		/* If we're in a sub-direcotry */
+
+		bael_add(&((*parent_entry)->child_entries), add_entry);
+	}
+	else
+	{
+		/* If we're in the root drectory */
+
+		bael_add(&(arch->entry_tree), add_entry);
+	}
 
 error:
 	return;
@@ -898,11 +914,27 @@ uint8_t* ba_get_file_contents(BoxArchive *arch, ba_Entry *entry, fsize_t *size)
 	/* Set the size */
 	*size = entry->file_data->__size;
 
-	/* Load the buffer if necessary */
-	if (! entry->file_data->buffer)							/* Technically, we don't need the if statement here, but I added it anyway just for code clarity. */
+	/* Load data into buffer if necessary */
+	if (! entry->file_data->buffer)
 	{
-		__ba_buffer_file(arch, entry);
+		if (entry->__orig_loc)
+		{
+			/* Load from source file if newly added */
+
+			entry->file_data->buffer = malloc(entry->file_data->__size);
+
+			FILE* sourcefile = fopen(entry->__orig_loc, "r");
+			fread(entry->file_data->buffer, entry->file_data->__size, 1, sourcefile);		/* You are welcome to change this if you have a nicer way of loading the file into memory. */
+			fclose(sourcefile);
+		}
+		else
+		{
+			/* Else load from archive */
+
+			__ba_buffer_file(arch, entry);
+		}
 	}
+
 
 	/* Return a copy of the buffer */
 	uint8_t *copy = malloc(entry->file_data->__size);

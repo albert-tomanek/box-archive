@@ -1,4 +1,4 @@
- - Make ba_get_entries() return a double pointer.
+ - Make ba_add_file return a pointer to the newly created entry.
  - Make offset_t signed, so that it can be set to -1 when it hasn't been set yet.
  - Consider using void* instead of uint8_t* for ba_File->buffer?
  - ba_extract() from buffer rather than file, if buffer is existent.
