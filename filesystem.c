@@ -96,7 +96,7 @@
 				continue;
 			}
 
-			current = calloc(1, sizeof(ba_Entry));
+			current = calloc(1, sizeof(ba_Entry));		/* Allocate memory to hold the new entry */
 			check(current, "Out of memory.");
 
 			if (dirent_entry->d_type == DT_REG)		/* REGular file */

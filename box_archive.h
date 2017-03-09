@@ -46,8 +46,8 @@
   ba_Entry* ba_get(BoxArchive *arch, char *path);		/* Finds the entry with the given path, and returns a pointer to it. */
 
   void 		ba_add		(BoxArchive *arch, ba_Entry **parent_entry, ba_Entry *add_entry);				/* Adds 'add_entry' to the directory 'parent_entry'. Note: it's prefered to use ba_add_file() and ba_add_dir() instead. */
-  ba_Entry*	ba_add_file	(BoxArchive *arch, ba_Entry **parent_entry, char *file_name, char *loc);
-  ba_Entry*	ba_add_dir	(BoxArchive *arch, ba_Entry **parent_entry, char *dir_name);
+  ba_Entry*	ba_add_file	(BoxArchive *arch, ba_Entry **parent_entry, char *file_name, char *loc);		/* Adds the file at 'loc' on the current filesystem as 'file_name' in 'parent_directory'. If the file is to be added to the toplevel direcotry, 'parent_directory' should be NULL. Returns a pointoer to the newly created entry. DO NOT FREE THIS POINTER. */
+  ba_Entry*	ba_add_dir	(BoxArchive *arch, ba_Entry **parent_entry, char *dir_name);					/* Like ba_add_file but for a directory. */
   void		ba_move		(BoxArchive *arch, ba_Entry  *src_entry, ba_Entry **dest_entry);
   void 		ba_remove	(BoxArchive *arch, ba_Entry **rm_entry);					/* Delete a file from an archive */
 

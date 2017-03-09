@@ -578,22 +578,28 @@ error:
 
 int ba_extract(BoxArchive *arch, ba_Entry *file_entry, char *dest)
 {
-	check(file_entry, "Null-pointer given to ba_extract().");
+	check(file_entry, "Null-pointer given to ba_extract() for BoxArchive *arch.");
+	check(file_entry, "Null-pointer given to ba_extract() for ba_Entry *file_entry.");
 
-	fsize_t file_size = file_entry->file_data->__size;
+	fsize_t file_size;
 
-	/* Go to the start of the file in the data chunk */
-	fseek(arch->file, P_FILE_DATA + strlen(arch->header) + file_entry->file_data->__start, SEEK_SET);
+	/* Get the file's contents */
+	uint8_t *data = ba_get_file_contents(arch, file_entry, &file_size);
+	check(data, "Error getting file contents of \"%s\".", file_entry->path);
 
 	/* Open the file to write to */
 	FILE* out_file = fopen(dest, "w+");
-	check(out_file, "File at \"%s\" could not be opened for writing.", dest);
+	check(out_file, "File \"%s\" could not be opened for writing.", dest);
 
 	for (fsize_t offset = 0; offset < file_size; offset++)
 	{
 		/* Write each byte out to the file */
-		fputc(fgetc(arch->file), out_file);
+		fputc(data[offset], out_file);
 	}
+
+	fclose(out_file);
+
+	free(data);
 
 	return 0;
 
@@ -908,8 +914,9 @@ ba_Entry* __ba_get_rec_func(ba_Entry *first_entry, char *path)
 
 uint8_t* ba_get_file_contents(BoxArchive *arch, ba_Entry *entry, fsize_t *size)
 {
-	/* This function returns a copy of the file's contents,	*
-	 * and sets *size to the size of the returned data.		*
+	/* This function returns a copy of the file's contents	*
+	 * (irrelevant of their source), and sets *size to the	*
+	 * size of the returned data. 							*
 	 * For text files use ba_get_textfile_contents().		*/
 
 	check(arch, "Null-pointer given to ba_get_file_contents() for 'BoxArchive *arch'.");
