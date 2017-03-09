@@ -621,7 +621,7 @@ error:
 	return;
 }
 
-void ba_add_file(BoxArchive *arch, ba_Entry **parent_entry, char *file_name, char *loc)
+ba_Entry* ba_add_file(BoxArchive *arch, ba_Entry **parent_entry, char *file_name, char *loc)
 {
 	/* Like ba_add() but fills in the struct for you.	*/
 
@@ -641,10 +641,13 @@ void ba_add_file(BoxArchive *arch, ba_Entry **parent_entry, char *file_name, cha
 
 	check(add_entry->file_data, "Out of memory (malloc() returned NULL).");
 
+	/* Fill in the file data */					/* These are ESSENTIAL. Without them __ba_create_archive_file() would crash and burn. */
 	add_entry->file_data->buffer  = NULL;								/* Initialize the buffer with NULL, so that we know that the buffer is not loaded. */
-	add_entry->file_data->__size  = ba_fsize(add_entry->__orig_loc);		/* v-- These are ESSENTIAL. Without them __ba_create_archive_file() would crash and burn. */
+	add_entry->file_data->__size  = ba_fsize(add_entry->__orig_loc);	/* We check that ba_fsize hasn't failed in a couple of lines time. I don't do it straight away to keep the code clear. */
 	add_entry->file_data->__start = -1;					/* -1 for now, because we haven't been saved to a file yet. */
 	add_entry->file_data->__old_start = -1;				/* See 'doc/howitworks.txt' for info about ->__old_start */
+
+	check(add_entry->file_data->__size != -1, "ba_fsize() returned -1.");		/* Check that ba_fsize() hasn't failed. */
 
 	arch->__data_size += add_entry->file_data->__size;				/* Increment the overall size by our size, so that other files can beadded to the NEW end of the data chunk */
 
@@ -661,17 +664,21 @@ void ba_add_file(BoxArchive *arch, ba_Entry **parent_entry, char *file_name, cha
 		bael_add(&(arch->entry_tree), add_entry);
 	}
 
+	return add_entry;
+
 error:
-	return;
+	return NULL;
 }
 
-void ba_add_dir(BoxArchive *arch, ba_Entry **parent_entry, char *dir_name)
+ba_Entry* ba_add_dir(BoxArchive *arch, ba_Entry **parent_entry, char *dir_name)
 {
 	check(parent_entry, "Null pointer given for ba_Entry **parent_entry to ba_add_dir().");
 
 	/* Like ba_add_file() but for directories. */
 
 	ba_Entry *add_entry = malloc(sizeof(ba_Entry));
+
+	check(add_entry, "Out of memory (malloc() returned NULL).");
 
 	add_entry->type       = ba_EntryType_DIR;
 	add_entry->__orig_loc = NULL;
@@ -683,8 +690,10 @@ void ba_add_dir(BoxArchive *arch, ba_Entry **parent_entry, char *dir_name)
 
 	bael_add(&((*parent_entry)->child_entries), add_entry);
 
+	return add_entry;
+
 error:
-	return;
+	return NULL;
 }
 
 void ba_remove(BoxArchive *arch, ba_Entry **rm_entry)

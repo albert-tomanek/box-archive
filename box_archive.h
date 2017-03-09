@@ -13,6 +13,14 @@
   #define BA_INTLEN 20      /* The length of temporary char arrays into which int attributes will be written */
 
   #define NODEBUG			/* Stops debug output */
+  /*#define RELEASE*/
+
+  #ifdef  RELEASE
+    #undef  log_err			/* Don't show debug errors in the release binary */
+    #define log_err(...)
+	#undef  log_warn
+	#define log_warn(...)
+  #endif
 
   /* Structs */
   struct BoxArchive {
@@ -34,13 +42,12 @@
   BoxArchive* 	ba_open(char *loc);           /* The uint8_t is used to store a boolean value */
   void			ba_save(BoxArchive *arch, char *loc);
   void			ba_close(BoxArchive *arch);
-
   ba_Entry*	ba_get_entries(BoxArchive *arch);			/* Returns a pointer to the archive's entry tree */
   ba_Entry* ba_get(BoxArchive *arch, char *path);		/* Finds the entry with the given path, and returns a pointer to it. */
 
   void 		ba_add		(BoxArchive *arch, ba_Entry **parent_entry, ba_Entry *add_entry);				/* Adds 'add_entry' to the directory 'parent_entry'. Note: it's prefered to use ba_add_file() and ba_add_dir() instead. */
-  void 		ba_add_file	(BoxArchive *arch, ba_Entry **parent_entry, char *file_name, char *loc);
-  void 		ba_add_dir	(BoxArchive *arch, ba_Entry **parent_entry, char *dir_name);
+  ba_Entry*	ba_add_file	(BoxArchive *arch, ba_Entry **parent_entry, char *file_name, char *loc);
+  ba_Entry*	ba_add_dir	(BoxArchive *arch, ba_Entry **parent_entry, char *dir_name);
   void		ba_move		(BoxArchive *arch, ba_Entry  *src_entry, ba_Entry **dest_entry);
   void 		ba_remove	(BoxArchive *arch, ba_Entry **rm_entry);					/* Delete a file from an archive */
 

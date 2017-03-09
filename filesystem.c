@@ -116,6 +116,8 @@
 				current->file_data->__start = *data_size;
 				current->file_data->__old_start = -1;
 
+				check(current->file_data->__size != -1, "ba_fsize() returned -1.");		/* Check that ba_fsize() hasn't failed. */
+
 				if (data_size)	*data_size += current->file_data->__size;			/* If they dive us a null-pointer to data_size, we'd fet a seg-fault if we tried to increment it. */
 			}
 			if (dirent_entry->d_type == DT_DIR)		/* Directory */
@@ -168,11 +170,18 @@
 
 		struct stat file_stat;
 
-		/* Ensure that is is a regular file */
-		if ( (stat(loc, &file_stat) != 0) || (!S_ISREG(file_stat.st_mode)) )
+		/* Ensure that it exists */
+		if (stat(loc, &file_stat) != 0)
 		{
-			log_warn("Filesystem entry \"%s\" is not a file", loc);
-			return 0;
+			log_err("Filesystem entry \"%s\" not found.", loc);
+			goto error;
+		}
+
+		/* Ensure that is is a regular file */
+		if ( (!S_ISREG(file_stat.st_mode)) )
+		{
+			log_err("Filesystem entry \"%s\" is not a file.", loc);
+			goto error;
 		}
 
 		return (fsize_t) file_stat.st_size;
