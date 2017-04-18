@@ -15,31 +15,6 @@
 #include "positions.h"
 #include "types.h"
 
-typedef struct ezxml ezxml;		/* Not properly implemented in EzXML for some reason... */
-
-/* Private stuff */
-
-void      __ba_load_dir_tree	  (fsize_t *total_size, char *orig_header, ba_Entry **first_entry);
-void      __ba_process_xml_dir	  (fsize_t *total_size, ezxml *parent_xml, ba_Entry **first_entry, ba_Entry *parent_dir);	/* parent_dir=NULL if toplevel dir */
-ba_Entry* __ba_get_file_metadata  (ezxml *file_node, ba_Entry *parent_dir);
-ba_Entry* __ba_get_dir_metadata	  (ezxml *dir_node, ba_Entry *parent_dir);
-ba_Entry* __ba_get_rec_func		  (ba_Entry *first_entry, char *path);
-void      __ba_buffer_entries     (BoxArchive *arch);
-void      __ba_buffer_dir         (BoxArchive *arch, ba_Entry *first_entry);
-void      __ba_buffer_file        (BoxArchive *arch, ba_Entry *entry);
-void      __ba_treesize_rec_func  (ba_Entry *first_entry, fsize_t *size);
-void      __ba_dir_entry_to_xml	  (ezxml *parent_node, ba_Entry *first_entry);
-void      __ba_create_header	  (BoxArchive *arch);
-int       __ba_create_archive_file(BoxArchive *arch, char *loc);	/* Returns 0 on sucess, and > 0 on failure */
-void      __ba_save_entry_dir     (ba_Entry *first_entry, FILE *infile, FILE *outfile, fsize_t *total_size);
-void      __ba_rearrange          (BoxArchive *arch);
-void      __ba_rec_rearrange_func (ba_Entry *first_entry, offset_t *data_size);
-
-char*     __ba_load_header (FILE* file);
-hdrlen_t  __ba_get_hdrlen  (FILE* file);	/* Used only by ba_load(), and not by ba_save().	*/
-
-void      __fgetstrn(char *dest, int length, FILE* file);
-
 /* Library functions */
 
 BoxArchive* ba_new()
@@ -265,8 +240,7 @@ void __ba_rearrange(BoxArchive *arch)
 	 * 													*
 	 * For example, this is necessary when a file has 	*
 	 * been removed from the middle of the data block,	*
-	 * and there would be a gap in start offsets.		*
-	 * Have a nice day.									*/
+	 * and there would be a gap in start offsets.		*/
 
 	check(arch, "Null-pointer given to __ba_rearrange()");
 
@@ -610,7 +584,8 @@ error:
 void ba_add(BoxArchive *arch, ba_Entry **parent_entry, ba_Entry *add_entry)
 {
 	/* This function addds the given entry				*
-	 * into the given directory.						*
+	 * into the given directory. Like its counterparts,	*
+	 * changes arch->data_size.							*
 	 *													*
 	 * Note that this function expects that add_entry 	*
 	 * is correctly filled in, otherwise there will be	*
@@ -618,10 +593,23 @@ void ba_add(BoxArchive *arch, ba_Entry **parent_entry, ba_Entry *add_entry)
 	 * ba_add_file() & ba_add_dir() unless you know		*
 	 * what you're doing.								*/
 
-	check(parent_entry, "Null pointer given for ba_Entry **parent_entry to ba_add().");
 	check(add_entry   , "Null pointer given for ba_Entry *add_entry to ba_add().");
 
-	bael_add(&((*parent_entry)->child_entries), add_entry);	/* Sorry about the messy pointer de-referencing...	*/
+	if (parent_entry)
+	{
+		/* If we're in a sub-direcotry */
+
+		bael_add(&((*parent_entry)->child_entries), add_entry);
+	}
+	else
+	{
+		/* If we're in the root drectory */
+
+		bael_add(&(arch->entry_tree), add_entry);
+	}
+
+	/* Increment the data size */
+	arch->__data_size += add_entry->file_data->__size;
 
 error:
 	return;
@@ -678,7 +666,7 @@ error:
 
 ba_Entry* ba_add_dir(BoxArchive *arch, ba_Entry **parent_entry, char *dir_name)
 {
-	check(parent_entry, "Null pointer given for ba_Entry **parent_entry to ba_add_dir().");
+	check(arch, "Null-pointer given to ba_add_file() for BoxArchive *arch.");
 
 	/* Like ba_add_file() but for directories. */
 
@@ -688,13 +676,24 @@ ba_Entry* ba_add_dir(BoxArchive *arch, ba_Entry **parent_entry, char *dir_name)
 
 	add_entry->type       = ba_EntryType_DIR;
 	add_entry->__orig_loc = NULL;
-	add_entry->path       = dupcat((*parent_entry)->path ? (*parent_entry)->path : "", dir_name, (dir_name[strlen(dir_name)-1] == BA_SEP[0] ? "" : BA_SEP), "");
+	add_entry->path       = dupcat((parent_entry ? (*parent_entry)->path : ""), dir_name, (dir_name[strlen(dir_name)-1] == BA_SEP[0] ? "" : BA_SEP), "");
 	add_entry->name       = strdup(dir_name);
 	add_entry->file_data  = NULL;
-	add_entry->parent_dir = *parent_entry;	/* Doesn't matter if this is NULL */
+	add_entry->parent_dir = (parent_entry ? *parent_entry : NULL);		/* Doesn't matter if this is NULL */
 	add_entry->child_entries = NULL;		/* For now... */
 
-	bael_add(&((*parent_entry)->child_entries), add_entry);
+	if (parent_entry)
+	{
+		/* If we're in a sub-direcotry */
+
+		bael_add(&((*parent_entry)->child_entries), add_entry);
+	}
+	else
+	{
+		/* If we're in the root drectory */
+
+		bael_add(&(arch->entry_tree), add_entry);
+	}
 
 	return add_entry;
 
@@ -711,6 +710,8 @@ void ba_remove(BoxArchive *arch, ba_Entry **rm_entry)
 
 	if ((*rm_entry)->type == ba_EntryType_FILE)
 	{
+		/* If the entry is a file */
+
 		bael_remove  (arch, (*rm_entry));		/* We have to de-reference it since rm_entry is a double pointer. */
 	}
 	else if ((*rm_entry)->type == ba_EntryType_DIR)
@@ -718,7 +719,6 @@ void ba_remove(BoxArchive *arch, ba_Entry **rm_entry)
 		bael_remove (arch, (*rm_entry));				/* Remove the directory from the entry tree; DO NOT DESTROY IT YET */
 		bael_free ( &((*rm_entry)->child_entries) );	/* Free the tree of child entries */
 	}
-
 	if ((*rm_entry)->file_data)
 	{
 		arch->__data_size -= (*rm_entry)->file_data->__size;	/* Subtract the size of the file from the total */
