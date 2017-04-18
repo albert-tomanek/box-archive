@@ -1,3 +1,6 @@
+/* Copyright (C) 2017  Albert Tomanek *
+ * For license see LICENSE.txt        */
+
 #ifndef __BOX_ARCHIVER_POSITIONS_H__
   #define __BOX_ARCHIVER_POSITIONS_H__
 

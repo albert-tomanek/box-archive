@@ -32,6 +32,25 @@ lib: $(LIBFILES)
 $(TARGET): $(OBJECTS) lib			# These arguments (eg $(OBJECTS)) are the things that need to be done before the following code can be done
 	$(CC) $(CFLAGS) $(MAIN_SOURCE) $(LIBNAME) -Wall $(LIBS) -o $@
 
+install: 
+	cp $(TARGET) /usr/bin
+	cp $(LIBNAME) /usr/lib
+	
+	mkdir /usr/include/box_archive
+	cp box_archive.h /usr/include/box_archive
+	cp entry.h       /usr/include/box_archive
+	cp file.h        /usr/include/box_archive
+	cp types.h       /usr/include/box_archive
+	
+	mkdir /usr/include/box_archive/ezxml
+	cp ezxml/ezxml.h /usr/include/box_archive/ezxml
+
+uninstall:
+	rm /usr/bin/$(TARGET)
+	rm /usr/lib/$(LIBNAME)
+	
+	rm -r /usr/include/box_archive
+
 clean:
 	make -C $(EZXML_DIR) clean
 	-rm -f *.o

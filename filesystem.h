@@ -1,3 +1,5 @@
+/* Copyright (C) 2017  Albert Tomanek *
+ * For license see LICENSE.txt        */
 
 #ifndef __BOX_ARCHIVER_FILESYSTEM_H__
   #define __BOX_ARCHIVER_FILESYSTEM_H__

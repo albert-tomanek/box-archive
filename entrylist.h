@@ -1,5 +1,7 @@
-/* Just a simple linked list of filesystem entry structs,	*
- * passed from the ba library to the program using it.		*/
+/* Copyright (C) 2017  Albert Tomanek *
+ * For license see LICENSE.txt        */
+
+/* Just a simple linked list of filesystem entry structs */
 
 #ifndef __BOX_ARCHIVE_ENTRYLIST_H__
   #define __BOX_ARCHIVE_ENTRYLIST_H__

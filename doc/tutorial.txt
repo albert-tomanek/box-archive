@@ -16,9 +16,10 @@ Contents:
 
 1 - Building the library
 ------------------------
-The library can be built by typing:
+The library can be built and installed by typing:
 
-	make lib
+	make
+	sudo make install
 
 This will create the static library 'libboxarchive.0.09.a',
 which you can use when compiling your programs.
@@ -30,7 +31,7 @@ The simplest thing we can do using the BoxArchive library
 is load a box archive from one file, and save it to another:
 
 	#include <stdio.h>
-	#include "box_archive.h"
+	#include <box_archive/box_archive.h>
 
 	int main()
 	{
@@ -73,7 +74,7 @@ Also, changing the string won't change the actual XML header.
 
 	#include <stdio.h>
 	#include <stdlib.h>
-	#include "box_archive.h"
+	#include <box_archive/box_archive.h>
 
 	int main()
 	{
@@ -127,7 +128,7 @@ will return NULL and the loop will be skipped.
 The following program will recursively list the contents of an archive.
 
 	#include <stdio.h>
-	#include "box_archive.h"
+	#include <box_archive/box_archive.h>
 	
 	void list_directory_contents (ba_Entry *current);
 
@@ -158,8 +159,7 @@ The following program will recursively list the contents of an archive.
 			
 			if (current->type == ba_EntryType_DIR)
 			{
-				list_directory_contents(current->child_entries);	// List this 
-directory's contents
+				list_directory_contents(current->child_entries);	// List this directory's contents
 			}
 			
 			current = current->next;
@@ -235,7 +235,7 @@ images/
 images/tree.jpg
 
 	#include <string.h>
-	#include "box_archive.h"
+	#include <box_archive/box_archive.h>
 
 	int main()
 	{
@@ -274,8 +274,7 @@ To create a file from data in memory, you create a zero-byte file by
 calling ba_add_file with the 'loc' argument being NULL,
 and then set the file's contents using ba_set_file_contents().
 	
-	const char contents[] = "<html><body>This is a tree:<br/><img 
-src=\"images/tree.jpg\"/></body></html>";
+	const char contents[] = "<html><body>This is a tree:<br/><img src=\"images/tree.jpg\"/></body></html>";
 	
 	ba_Entry *file = ba_add_file(arch, NULL, "index.html", NULL);	 // Creates a zero-byte file
 	ba_set_file_contents(arch, file, contents, strlen(contents));

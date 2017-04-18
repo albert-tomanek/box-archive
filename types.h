@@ -1,3 +1,6 @@
+/* Copyright (C) 2017  Albert Tomanek *
+ * For license see LICENSE.txt        */
+
 /* Internal type for values like ba_File->__start ,
  * so that the value can be changed with future compiles.
  */

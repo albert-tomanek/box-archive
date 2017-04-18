@@ -1,3 +1,5 @@
+/* Copyright (C) 2017  Albert Tomanek *
+ * For license see LICENSE.txt        */
 
 #ifndef __BOX_ARCHIVER_MAIN_H__
   #define __BOX_ARCHIVER_MAIN_H__
@@ -5,7 +7,7 @@
   #include "box_archive.h"
 
   #define BOX_ARCHIVER_VERSION "v0.09 Dev alpha"
-  #define BOX_ARCHIVER_LICENSE "GPLv3"
+  #define BOX_ARCHIVER_LICENSE "LGPLv2.1"
 
   enum Job {
 	  NONE = 0,

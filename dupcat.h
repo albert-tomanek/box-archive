@@ -1,3 +1,6 @@
+/* Copyright (C) 2017  Albert Tomanek *
+ * For license see LICENSE.txt        */
+
 /* A simple function that joins three strings	*
  * into a new string, which it then returns.	*/
 

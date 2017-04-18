@@ -1,6 +1,5 @@
-/*  All credit for this header goes to Zed, the author of 'Learn C the hard way'.
- *  An online version can be found here: http://c.learncodethehardway.org/book/
- */
+/*  All credit for this header goes to Zed, the author of 'Learn C the hard way'.	*
+ *  An online version can be found here: http://c.learncodethehardway.org/book/		*/
  
 #ifndef __dbg_h__
 #define __dbg_h__

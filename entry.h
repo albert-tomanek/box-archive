@@ -1,6 +1,9 @@
- /* A struct used to hold metadata			*
-  * about a filesystem entry (file or dir),	*
-  * in a BOX archive.						*/
+/* Copyright (C) 2017  Albert Tomanek *
+ * For license see LICENSE.txt        */
+
+/* A struct used to hold metadata			*
+ * about a filesystem entry (file or dir),	*
+ * in a BOX archive.						*/
 
 #ifndef __BOX_ARCHIVE_ENTRY_H__
   #define __BOX_ARCHIVE_ENTRY_H__

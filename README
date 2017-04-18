@@ -49,21 +49,18 @@ If porting the BoxArchive library, the only files that need adding to are byteor
 To compile:
 make
 
-To run:
-./box
+To install:
+sudo make install
 
-If all you want to compile is the library,
-and not the box archiver with it, run:
-make lib
-
-And finally to clean:
-make clean
+To uninstall:
+sudo make uninstall
 
 FILES
 =====
 doc/BoxArchive			-  A text file depicting the structure of the BoxArchive, ba_Entry, and ba_File structs in memory.
 doc/format.txt			-  The specification for the BOX format.
 doc/howitworks.txt		-  An in-depth description of how the BoxArchive library works for anyone willing to contribute.
+doc/tutorial.txt		-  A tutorial on how to use the BoxArchive library
 box_archive.c			\_
 box_archive.h			/  The main file of the box archive library and its header
 byteorder.c			\_

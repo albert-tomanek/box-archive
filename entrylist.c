@@ -1,3 +1,6 @@
+/* Copyright (C) 2017  Albert Tomanek *
+ * For license see LICENSE.txt        */
+
 #include <string.h>
 #include <stdlib.h>
 

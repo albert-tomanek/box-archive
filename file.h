@@ -1,3 +1,6 @@
+/* Copyright (C) 2017  Albert Tomanek *
+ * For license see LICENSE.txt        */
+
 /* A struct used to hold internal (to the program)	*
  * data about a file (such as start and size).		*
  * A struct containing the metadata is pointed to.	*/

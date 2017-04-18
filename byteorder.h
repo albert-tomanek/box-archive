@@ -1,3 +1,6 @@
+/* Copyright (C) 2017  Albert Tomanek *
+ * For license see LICENSE.txt        */
+
 #ifndef __BOX_ARCHIVE_BYTEORDER_H__
   #define __BOX_ARCHIVE_BYTEORDER_H_
 
