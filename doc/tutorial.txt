@@ -1,0 +1,260 @@
+Tutorial
+========
+[Updated as of c39]
+
+Welcome to the tutorial. Here you will learn how to use the BoxArchive library.
+
+Contents:
+1 - Building the library
+2 - First program
+3 - The XML header
+4 - Archive entries
+5 - Metadata
+6 - Creating an archive
+7 - Extracting files
+
+1 - Building the library
+------------------------
+The library can be built by typing:
+
+    make lib
+
+This will create the static library 'libboxarchive.0.09.a',
+which you can use when compiling your programs.
+
+
+2 - First program
+-----------------
+The simplest thing we can do using the BoxArchive library
+is load a box archive from one file, and save it to another:
+
+    #include <stdio.h>
+    #include "box_archive.h"
+
+    int main()
+    {
+        BoxArchive *arch = ba_open("archive.box");
+        
+        ba_save(arch, "archive2.box");
+        
+        ba_close(arch);
+        
+        return 0;
+    }
+
+First we use ba_open() to open an archive.
+This returns a pointer to a BoxArchive struct, which represents the archive in memory.
+Next we save the archive, using ba_save(), to another file.
+Finally we free the memory used by our archive by calling ba_close().
+You should always free every open archive with ba_close() at the end of your program.
+
+You can compile this program by doing:
+
+    gcc  -L. 01.c -lboxarchive.0.09
+
+Note that if ba_open() fails, it returns NULL,
+so you might want to check for errors before calling ba_save() by adding the following:
+
+    if (! arch)
+    {
+        printf("Error opening archive.\n");
+        return 1;
+    }
+
+
+3 - The XML header
+------------------
+The next simplest thing that we can do with a box archive is print its XML header.
+You can get an archive's XML header by calling ba_get_header() on the archive.
+Note that ba_get_header() returns a string that has been strdup()'ed,
+and you therefore have to free() it once you're done with it.
+Also, changing the string won't change the actual XML header.
+
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include "box_archive.h"
+
+    int main()
+    {
+        BoxArchive *arch = ba_open("archive.box");
+        
+        if (! arch)
+        {
+            printf("Error opening archive.\n");
+            return 1;
+        }
+        
+        char *header = ba_get_header(arch);
+        
+        printf("%s\n", header);
+        
+        free(header);
+        ba_close(arch);
+        
+        return 0;
+    }
+
+If there is an issue, ba_get_header() will return NULL.
+
+
+4 - Archive entries
+-------------------
+When a Box archive is loaded in memory,
+its directory hierarchy is stored as a tree of ba_Entry structures.
+Entries in a directory are singly-linked by ->next pointers,
+and directory entries point to their first child entry with ->child_entries.
+(For a detailed depiction see doc/BoxArchive.)
+
+An entry struct can either be a file, or a directory.
+The type of entry is stored in ->type (an enum which can either be ba_EntryType_FILE or ba_EntryType_DIR).
+
+You can get a pointer to the first entry of the top-level directory of an archive
+using the function ba_get_entries().
+
+This code snippet would print the names all the entries in an archive's top-level directory:
+
+	ba_Entry *current_entry = ba_get_entries(arch);     // If the archive is empty, the function will return NULL and the loop will be skipped.
+	
+	while (current_entry)
+	{
+	    printf("%s\n", current_entry->name);
+	    
+	    current_entry = current_entry->next;
+	}
+
+The following program will recursively list the contents of an archive.
+
+    #include <stdio.h>
+    #include "box_archive.h"
+    
+    void list_directory_contents (ba_Entry *current);
+
+    int main()
+    {
+        BoxArchive *arch = ba_open("archive.box");
+        
+        if (! arch)
+        {
+            printf("Error opening archive.\n");
+            return 1;
+        }
+        
+        ba_Entry *first_entry = ba_get_entries(arch);
+        
+        list_directory_contents(first_entry);
+        
+        ba_close(arch);
+        
+        return 0;
+    }
+    
+    void list_directory_contents (ba_Entry *current)
+    {
+        while (current)
+        {
+            printf("%s\n", current->path);
+            
+            if (current->type == ba_EntryType_DIR)
+            {
+                list_directory_contents(current->child_entries);    // List this directory's contents
+            }
+            
+            current = current->next;
+        }
+    }
+
+To get a specific entry by its path within an archive, you can use ba_get().
+On Windows systems the backslash will of course be used.
+
+    ba_Entry *my_entry = ba_get(arch, "music/midi/passport.mid");
+    
+    if (! my_entry)
+    {
+        printf("Entry not found.\n");
+        exit(1);
+    }
+
+
+5 - Metadata
+------------
+Each entry struct contains metadata.
+
+ba_Entry->name      = The entry name excluding its path. (eg. "hello.c")
+ba_Entry->path      = The entry name including its path. (eg. "src/hello.c")
+
+If the entry is a file, one further attribute will be stored in a 'file_data' struct.
+
+ba_Entry->file_data->__size = The file's size in bytes
+
+
+6 - Creating an archive
+-----------------------
+This program creates an archive with the following layout:
+
+index.html
+images/
+images/tree.jpg
+
+    #include "box_archive.h"
+
+    int main()
+    {
+        BoxArchive *arch = ba_new();
+                
+        ba_add_file(arch, NULL, "index.html", "~/Documents/index.html");
+        
+        ba_Entry *pictures_dir = ba_add_dir(arch, NULL, "images");
+        ba_add_file(arch, &pictures_dir, "tree.jpg", "~/Pictures/DSC_0331.JPG");
+        
+        ba_save(arch, "my_webpage.box");
+        ba_close(arch);
+        
+        return 0;
+    }
+
+First of all, we create a new box archive using ba_new().
+
+Then, we add a file to the archive using ba_add_file().
+Apart from the pointer to the BoxArchive instance, we pass 3 arguments:
+a double-pointer to the file's parent directory, its name, and its local path, respectively.
+Because we are adding 'index.html' to the archive's top-level directory,
+the pointer to the parent directory is NULL.
+
+Then we create a new directory called 'images' in the top-level directory using ba_add_dir(),
+and keep the pointer to the newly created entry.
+
+We add another file, this time to the newly created directory.
+
+Then we finally save the archive to the file 'my_webpage.box'.
+
+You may find it helpful to have a look at these functions in box_archive.h.
+
+
+7 - Extracting files
+--------------------
+To extract a file, you use ba_extract().
+    
+    ba_Entry *entry = ba_get(arch, "images/tree.jpg");
+    ba_extract(arch, entry, "/tmp/tree.jpg");
+
+It's pretty simple, really.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
