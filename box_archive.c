@@ -122,7 +122,8 @@ void __ba_save_entry_dir(ba_Entry *first_entry, FILE *infile, FILE *outfile, fsi
 	 * contents of each file entry to 'outfile'.	*
 	 * The contents are either read from the file 	*
 	 * at entry->__orig_loc, or from the buffer at 	*
-	 * entry->file_data->buffer.					*
+	 * entry->file_data->buffer. (If neither of 	*
+	 * these exist, the file is a zero-byte file.)	*
 	 *												*
 	 * This results in all the files' contents 		*
 	 * joined end-to-end in 'outfile'.				*/
@@ -204,6 +205,11 @@ void __ba_save_entry_dir(ba_Entry *first_entry, FILE *infile, FILE *outfile, fsi
 				}
 
 			}
+			else if (current_entry->file_data->__size == 0)
+			{
+				/* If the file is a zero-byte file,	*
+				 * there *shouldn't* be a source.	*/
+			}
 			else
 			{
 				log_err("No source for \"%s\" found.", current_entry->path);
@@ -212,7 +218,7 @@ void __ba_save_entry_dir(ba_Entry *first_entry, FILE *infile, FILE *outfile, fsi
 				continue;
 			}
 
-			/* Increment the total_size by the currenf file's size,		*
+			/* Increment the total_size by the current file's size,		*
 			 * so that the next file's ->file_data->__start can be set	*/
 
 			*total_size += current_entry->file_data->__size;
@@ -617,7 +623,8 @@ error:
 
 ba_Entry* ba_add_file(BoxArchive *arch, ba_Entry **parent_entry, char *file_name, char *loc)
 {
-	/* Like ba_add() but fills in the struct for you.	*/
+	/* Like ba_add() but fills in the struct for you.	*
+	 * If 'loc' is NULL it creates a zero-byte file.	*/
 
 	check(arch, "Null-pointer given to ba_add_file() for BoxArchive *arch.");
 
@@ -626,7 +633,7 @@ ba_Entry* ba_add_file(BoxArchive *arch, ba_Entry **parent_entry, char *file_name
 	check(add_entry, "Out of memory (malloc() returned NULL).");
 
 	add_entry->type       = ba_EntryType_FILE;
-	add_entry->__orig_loc = strdup(loc);
+	add_entry->__orig_loc = loc ? strdup(loc) : NULL;
 	add_entry->path       = dupcat((parent_entry ? (*parent_entry)->path : ""), file_name, "", "");
 	add_entry->name       = strdup(file_name);
 	add_entry->file_data  = malloc(sizeof(ba_File));
@@ -637,7 +644,7 @@ ba_Entry* ba_add_file(BoxArchive *arch, ba_Entry **parent_entry, char *file_name
 
 	/* Fill in the file data */					/* These are ESSENTIAL. Without them __ba_create_archive_file() would crash and burn. */
 	add_entry->file_data->buffer  = NULL;								/* Initialize the buffer with NULL, so that we know that the buffer is not loaded. */
-	add_entry->file_data->__size  = ba_fsize(add_entry->__orig_loc);	/* We check that ba_fsize hasn't failed in a couple of lines time. I don't do it straight away to keep the code clear. */
+	add_entry->file_data->__size  = loc ? ba_fsize(add_entry->__orig_loc) : 0;	/* We check that ba_fsize hasn't failed in a couple of lines time. I don't do it straight away to keep the code clear. */
 	add_entry->file_data->__start = -1;					/* -1 for now, because we haven't been saved to a file yet. */
 	add_entry->file_data->__old_start = -1;				/* See 'doc/howitworks.txt' for info about ->__old_start */
 
@@ -988,6 +995,8 @@ void ba_set_file_contents(BoxArchive *arch, ba_Entry *entry, uint8_t *data, fsiz
 	check(arch, "Null-pointer given to ba_get_file_contents() for 'BoxArchive *arch'.");
 	check(entry, "Null-pointer given to ba_get_file_contents() for 'ba_Entry *entry'.");
 	check(data, "Null-pointer given to ba_get_file_contents() for 'uint8_t *data'.");
+
+	check(entry->type == ba_EntryType_FILE, "Entry is not a file!");
 
 	/* Free the existing buffer if it exists.	*
 	 * I'm not using realloc because I don't	*
