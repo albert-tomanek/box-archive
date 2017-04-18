@@ -14,6 +14,8 @@ For the full format specification and examples, see the 'doc/' directory.
 The BoxArchive library is licensed under the LGPL
 and can therefore be used in closed-source projects.
 
+(For a tutorial see doc/tutorial.txt)
+
 CONTRIBUTING
 ============
 If you want to learn about how the BoxArchive library works,
