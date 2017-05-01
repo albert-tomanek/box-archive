@@ -9,6 +9,7 @@
 #include "dupcat.h"
 #include "box_archive.h"
 #include "entrylist.h"
+#include "metadata.h"
 #include "filesystem.h"
 
 #ifdef __unix__
@@ -17,8 +18,8 @@
 	#include <stddef.h>
 	#include <unistd.h>
 	#include <dirent.h>
-	#include <sys/stat.h>	/* For mkdir and fstat */
 	#include <sys/types.h>
+	#include <sys/stat.h>	/* For mkdir and fstat */
 
 	/* 'Private' declarations */
 
@@ -99,9 +100,11 @@
 				continue;
 			}
 
+			/* Create an entry */
 			current = calloc(1, sizeof(ba_Entry));		/* Allocate memory to hold the new entry */
 			check(current, "Out of memory.");
 
+			/* Entry-type dependent */
 			if (dirent_entry->d_type == DT_REG)		/* REGular file */
 			{
 				current->type = ba_EntryType_FILE;
@@ -113,6 +116,12 @@
 				current->__orig_loc    = dupcat(root_path, current->path, "", "");		/* eg. '/tmp/test/' + 'directory/file.dat'. This string us used so that ba_save() knows where to read the source file from when writing to the archive. */
 
 				check(current->file_data, "Out of memory (malloc() returned NULL).");
+
+				/* File metadata */
+
+				current->meta = ba_get_meta(current->__orig_loc);
+
+				/* File data */
 
 				current->file_data->buffer  = NULL;
 				current->file_data->__size  = ba_fsize(current->__orig_loc);		/* These are ESSENTIAL. Without them __ba_create_archive_file() would crash and burn. */
@@ -127,14 +136,19 @@
 			{
 				current->type = ba_EntryType_DIR;
 				current->name = strdup(dirent_entry->d_name);
-				current->path = dupcat(path, current->name, BA_SEP, "");
+				current->path = dupcat(path, current->name, BA_SEP, "");	/* The path of the directory WITHIN THE ARCHIE */
 				current->file_data     = NULL;							/* The file hasn't been saved in an archive yet */
 				current->parent_dir    = parent_entry;
 				current->child_entries = NULL;
+				current->__orig_loc    = dupcat(root_path, current->path, "", "");		/* eg. '/tmp/test/' + 'directory/file.dat'. This string us used so that ba_save() knows where to read the source file from when writing to the archive. */
+
+				/* Directory metadata */
+				current->meta = ba_get_meta(current->__orig_loc);
 
 				/* Run on the subdirectory */
 				__rec_getdir_func(current->path, root_path, &(current->child_entries), current, data_size);
 			}
+
 
 			bael_add(first_entry, current);		/* Add the newly created entry to the entry tree */
 
@@ -165,6 +179,31 @@
 		if (name_max == -1)         /* Limit not defined, or error */
 			name_max = 255;         /* Take a guess */
 		return offsetof(struct dirent, d_name) + name_max + 1;
+	}
+
+	ba_Meta* ba_get_meta(char *path)
+	{
+		/* Returns a struct containing the metadata for the given file	*/
+
+		ba_Meta *meta = malloc(sizeof(ba_Meta));
+		struct stat entry_stat;
+
+		check(meta, "Out of memory.");
+
+		/* Ensure that the entry exists */
+		if (stat(path, &entry_stat) != 0)
+		{
+			log_err("Filesystem entry \"%s\" not found.", path);
+			goto error;
+		}
+
+		meta->atime = entry_stat.st_atime;
+		meta->mtime = entry_stat.st_mtime;
+
+		return meta;
+
+	error:
+		return NULL;
 	}
 
 	fsize_t ba_fsize(char *loc)

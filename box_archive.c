@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <time.h>
 
 #include "dbg.h"
 #include "ezxml/ezxml.h"
@@ -93,7 +94,6 @@ int __ba_create_archive_file(BoxArchive *arch, char *loc)
 	fwrite(&header_length16, sizeof(hdrlen_t), 1, outfile);	/* Write the length of the XML header as uint16_t to the file. */
 
 	fwrite(arch->header, sizeof(char), strlen(arch->header), outfile);	/* Write the actual XML header to the file. */
-
 	fwrite(end_of_header, sizeof(end_of_header), 1, outfile);
 
 	arch->__data_size = 0;		/* I know that __ba_rearrange() already does this, sorry! */
@@ -508,11 +508,13 @@ ba_Entry* __ba_get_file_metadata(ezxml *file_node, ba_Entry *parent_dir)
 	char *joint_file_name;
 	joint_file_name = dupcat( parent_dir ? parent_dir->path : "" , (const char*) ezxml_attr(file_node, "name"), "", "");
 
-	ba_Entry *file_entry = malloc(sizeof(ba_Entry));	/* The entry used to hold the file's metadata */
-	ba_File  *file_data  = malloc(sizeof(ba_File));		/* The struct used to hold the file's position in the box archive, and a buffer of the contents */
-	check(file_entry && file_data, "malloc returned NULL.");
+	ba_Entry *file_entry = malloc(sizeof(ba_Entry));	/* The entry used to represent the file in memory */
+	ba_File  *file_data  = malloc(sizeof(ba_File));		/* The struct used to hold the file's size, start position in the box archive, and a buffer of the contents */
+	ba_Meta  *meta       = calloc(1, sizeof(ba_Meta));		/* The struct used to hold the entry's metadata appart from its name, path and size */
+	check(file_entry && file_data && meta, "Out of memory.");
 
-	file_entry->file_data = file_data;
+	file_entry->meta       = meta;
+	file_entry->file_data  = file_data;
 	file_entry->parent_dir = parent_dir;
 	file_entry->child_entries = NULL;
 
@@ -539,13 +541,15 @@ ba_Entry* __ba_get_dir_metadata(ezxml *dir_node, ba_Entry *parent_dir)
 	char *joint_dir_name;
 	joint_dir_name = dupcat( parent_dir ? parent_dir->path : "", (const char*) ezxml_attr(dir_node, "name"), BA_SEP, "");
 
-	ba_Entry *dir = malloc(sizeof(ba_Entry));
+	ba_Entry *dir  = malloc(sizeof(ba_Entry));
+	ba_Meta  *meta = calloc(1, sizeof(ba_Meta));
 
 	check(dir, "malloc returned NULL.");
 
 	dir->type = ba_EntryType_DIR;
 	dir->name = strdup( (const char*) ezxml_attr(dir_node, "name") );
 	dir->path = joint_dir_name;		/* Note: the string will be freed when the struct is freed.	*/
+	dir->meta = meta;
 
 	dir->file_data  = NULL; 		/* This is not a file */
 	dir->parent_dir = parent_dir;
@@ -639,11 +643,30 @@ ba_Entry* ba_add_file(BoxArchive *arch, ba_Entry **parent_entry, char *file_name
 	add_entry->__orig_loc = loc ? strdup(loc) : NULL;
 	add_entry->path       = dupcat((parent_entry ? (*parent_entry)->path : ""), file_name, "", "");
 	add_entry->name       = strdup(file_name);
+	add_entry->meta       = NULL;	// FOR NOW; we're filling this in later in the function.
 	add_entry->file_data  = malloc(sizeof(ba_File));
 	add_entry->parent_dir = (parent_entry ? *parent_entry : NULL);		/* Doesn't matter if it's NULL */
 	add_entry->child_entries = NULL;
 
 	check(add_entry->file_data, "Out of memory (malloc() returned NULL).");
+
+	/* Metadata */
+	if (loc != NULL)
+	{
+		add_entry->meta = ba_get_meta(loc);
+
+		check(add_entry->meta, "Could not get entry metadata.");
+	}
+	else
+	{
+		/* Newly created (zero-byte) files */
+
+		add_entry->meta = malloc(sizeof(ba_Meta));
+		check(add_entry->meta, "Out of memory.");
+
+		add_entry->meta->atime = time(NULL);	// Set the access and modification time to now
+		add_entry->meta->mtime = time(NULL);
+	}
 
 	/* Fill in the file data */					/* These are ESSENTIAL. Without them __ba_create_archive_file() would crash and burn. */
 	add_entry->file_data->buffer  = NULL;								/* Initialize the buffer with NULL, so that we know that the buffer is not loaded. */
@@ -688,6 +711,7 @@ ba_Entry* ba_add_dir(BoxArchive *arch, ba_Entry **parent_entry, char *dir_name)
 	add_entry->__orig_loc = NULL;
 	add_entry->path       = dupcat((parent_entry ? (*parent_entry)->path : ""), dir_name, (dir_name[strlen(dir_name)-1] == BA_SEP[0] ? "" : BA_SEP), "");
 	add_entry->name       = strdup(dir_name);
+	add_entry->meta       = ba_get_meta(dir_name);
 	add_entry->file_data  = NULL;
 	add_entry->parent_dir = (parent_entry ? *parent_entry : NULL);		/* Doesn't matter if this is NULL */
 	add_entry->child_entries = NULL;		/* For now... */
@@ -843,6 +867,8 @@ void __ba_dir_entry_to_xml(ezxml *parent_node, ba_Entry *first_entry)
 
 	char size_attr_str [BA_INTLEN];
 	char start_attr_str[BA_INTLEN];
+	char atime_attr_str[BA_INTLEN];
+	char mtime_attr_str[BA_INTLEN];
 
 	while (current)
 	{
@@ -862,6 +888,15 @@ void __ba_dir_entry_to_xml(ezxml *parent_node, ba_Entry *first_entry)
 		else if (current->type == ba_EntryType_DIR)
 		{
 			__ba_dir_entry_to_xml(current_node, current->child_entries);
+		}
+
+		/* Metadata is entry-type agnostic */
+		if (current->meta)
+		{
+			snprintf(atime_attr_str, BA_INTLEN, "%lld", (long long signed) current->meta->atime);
+			snprintf(mtime_attr_str, BA_INTLEN, "%lld", (long long signed) current->meta->mtime);
+			ezxml_set_attr_d(current_node, "atime", atime_attr_str );	/* _d calls a wrapper for ezxml_set_attr() that strdup()'s the strings passed to it. */
+			ezxml_set_attr_d(current_node, "mtime", mtime_attr_str );
 		}
 
 		current = current->next;

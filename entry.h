@@ -9,6 +9,7 @@
   #define __BOX_ARCHIVE_ENTRY_H__
 
   #include "types.h"
+  #include "metadata.h"
   #include "file.h"
 
   enum ba_EntryType {
@@ -21,10 +22,13 @@
 	  enum  ba_EntryType type;
 
 	  char *__orig_loc;		/* If this entry is a file, this will contain the location of the original file, so that the ba_save() knows where to read the file's data from when creating the archive. */
+	  						/* If the entry is a directory, it will contain the original location of the directory in the filesystem. This is howeer currently only set and used internally by __rec_getdir_func from the Linux/UNIX section of filesystem.c */
 
 	  /* Metadata */
 	  char *path;		/* The full path (eg. "/tmp/myProg/file.dat"). WILL contain a '/' at the end if it is a directory. The string will be on heap and therefore will be freed when ba_entry_free() is called. */
 	  char *name;		/* The file name (eg. "file.dat"). Will also be on heap.	*/
+
+	  ba_Meta *meta;	/* Struct containing all other metadata like access times and permissions */
 
 	  /* Pointers */
 	  struct ba_File  *file_data;		/* Start and length of the file. NULL if the entry is not a file */

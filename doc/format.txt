@@ -26,10 +26,12 @@ Format v1
 
 			<dir name="" >
 				name  = The directory name
-			<file name="" size="" start="" >
+			<file name="" size="" start="" atime="" mtime="">
 				name  = The file name
 				size  = The file's size in bytes.
 				start = The offset of the file data from the start of the data chunk.
+				atime = The last time the file was accessed (seconds since the Epoch)
+				mtime = The last time the file was modified (seconds since the Epoch)
 
 
 

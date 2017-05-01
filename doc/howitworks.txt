@@ -65,6 +65,7 @@ struct ba_Entry {
 	/* Metadata */
 	char *path;		/* The full path (eg. "/tmp/myProg/file.dat"). WILL contain a '/' at the end if it is a directory. The string will be on heap and therefore will be freed when ba_entry_free() is called. */
 	char *name;		/* The file name (eg. "file.dat"). Will also be on heap.	*/
+	ba_Meta *meta;	/* All other metadata */
 
 	/* Pointers */
 	struct ba_File  *file_data;		/* Start and length of the file. NULL if the entry is not a file */
@@ -93,7 +94,10 @@ which varies by platform.
 ->name is the name of the entry.
 For the file "media/pictures/cool stuff/DSC_0481.JPG" this would be "DSC_0481.JPG",
 and for the directory "fonts/ttf/" this would be "ttf".
-NOTE: Both ->path and ->name are malloc()'ed so they also need to be free()'d.
+NOTE: Both ->path and ->name are malloc()'ed and so are free()'d by ba_entry_free().
+
+->meta points to a ba_Meta struct containing all other metadata about the entry,
+like access times and permissions.
 
 ->file_data points to the struct describing the file.
 If the entry is a directory, this will be NULL.
@@ -141,6 +145,8 @@ A file in a BoxArchive in memory can be in one of three places:
 ->__old_start should be generally ignored.
 It is used briefly within ba_save(), between ba_rearrange()
 and __ba_save_archive_file() to store the start of the file in the source archive.
+
+This is what the ba_Meta struct
 
 For a depiction of the entry tree, have a look at doc/BoxArchive.
 
