@@ -11,9 +11,9 @@ CFLAGS = -g -Wall -Wno-discarded-qualifiers -Wno-deprecated-declarations -Wno-un
 default: $(TARGET)
 all: default
 
-LIBFILES = box_archive.o file.o entry.o entrylist.o filesystem.o dupcat.o byteorder.o
+LIBFILES = box_archive.o file.o entry.o entrylist.o filesystem.o metadata.o dupcat.o byteorder.o
 MAIN_SOURCE = main.c
-HEADERS = ezxml/ezxml.h box_archive.h file.h entry.h entrylist.h filesystem.h dupcat.h byteorder.h positions.h errors.h dbg.h
+HEADERS = ezxml/ezxml.h box_archive.h file.h entry.h entrylist.h filesystem.h metadata.h dupcat.h byteorder.h positions.h errors.h dbg.h
 
 EZXML_DIR = ezxml
 EZXML_LIB = $(EZXML_DIR)/libezxml.a
@@ -36,13 +36,14 @@ install:
 	cp $(TARGET) /usr/bin
 	cp $(LIBNAME) /usr/lib
 	
-	mkdir /usr/include/box_archive
+	mkdir -p /usr/include/box_archive
 	cp box_archive.h /usr/include/box_archive
 	cp entry.h       /usr/include/box_archive
 	cp file.h        /usr/include/box_archive
+	cp metadata.h    /usr/include/box_archive
 	cp types.h       /usr/include/box_archive
 	
-	mkdir /usr/include/box_archive/ezxml
+	mkdir -p /usr/include/box_archive/ezxml
 	cp ezxml/ezxml.h /usr/include/box_archive/ezxml
 
 uninstall:

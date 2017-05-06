@@ -243,19 +243,17 @@ int main (int argc, char *argv[])
 
             if (! entry) { fprintf(stderr, "Entry not found.\n"); break; }
 
+			/* These are designed to be decently machine-readable:	*
+			 * <name>:\t<value>\n									*/
 
             printf("Type:\t%s\n", ba_entry_nice_type(entry->type) );
             printf("Name:\t%s\n", entry->name);
             printf("Path:\t%s\n", entry->path);
 
-            printf("\n");
-
             if (entry->type == ba_EntryType_FILE && entry->file_data != NULL)
             {
                 printf("Start position:\t%llu\n", (long long unsigned) entry->file_data->__start);
                 printf("Size (bytes):\t%llu\n",   (long long unsigned) entry->file_data->__size);
-
-                printf("\n");
             }
 
             if (entry->type == ba_EntryType_DIR  && entry->child_entries != NULL)
@@ -268,6 +266,23 @@ int main (int argc, char *argv[])
                 }
                 printf("\n");
             }
+
+			if (entry->meta != NULL)
+			{
+				char atime_str[BOX_ARCHIVER_STRLEN];
+				char mtime_str[BOX_ARCHIVER_STRLEN];
+				struct tm atime_tm;
+				struct tm mtime_tm;
+
+				localtime_r(&(entry->meta->atime), &atime_tm);
+				localtime_r(&(entry->meta->mtime), &mtime_tm);
+
+				strftime(atime_str, BOX_ARCHIVER_STRLEN, "%Y-%m-%d %H:%M:%S", &atime_tm);
+				strftime(mtime_str, BOX_ARCHIVER_STRLEN, "%Y-%m-%d %H:%M:%S", &mtime_tm);
+
+				printf("Last accessed:\t%s\n", atime_str);
+				printf("Last modified:\t%s\n", mtime_str);
+			}
 
             break;
         }

@@ -17,6 +17,7 @@
 
 	#include <stddef.h>
 	#include <unistd.h>
+	#include <utime.h>
 	#include <dirent.h>
 	#include <sys/types.h>
 	#include <sys/stat.h>	/* For mkdir and fstat */
@@ -38,6 +39,7 @@
 		full_path = dupcat(parent_dir, (parent_dir[strlen(parent_dir)-1] == BA_SEP[0] ? "" : BA_SEP), dir->path, "");		/* eg. "/tmp" + "/" + "myProg" */
 
 		mkdir(full_path, (S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH) );				/* Note to self: tar extracts dirs as drwxr-xr-x */
+		ba_write_metadata(full_path, dir->meta);	/* Apply the metadata to the filesystem entry */
 
 		free(full_path);
 
@@ -47,6 +49,26 @@
 		if (full_path)	free(full_path);
 
 		return;
+	}
+
+	void ba_write_metadata(char *path, ba_Meta *meta)
+	{
+		check(path, "No path given to ba_write_metadata().");
+		if (! meta) return;
+
+		/* Writes the given metadata to the specified filesystem entry */
+
+		/* Access and modification times */
+		struct utimbuf *time_meta = calloc(1, sizeof(struct utimbuf));
+
+		time_meta->actime  = meta->atime;	/* These are the only two values in the struct, so we don't need to worry that we're leaving other times blank and accidentally setting them to 1970-01-01 01:00:00 */
+		time_meta->modtime = meta->mtime;
+
+		utime(path, time_meta);	/* Write the new time metadata to the filesystem. May return -1 but oh well... */
+		return;
+
+	error:
+		return;		/* We can't really indicate an error because we're a void function */
 	}
 
 	void ba_load_fs_tree(char *orig_root_path, ba_Entry **first_entry, fsize_t *data_size)
@@ -119,7 +141,7 @@
 
 				/* File metadata */
 
-				current->meta = ba_get_meta(current->__orig_loc);
+				current->meta = ba_get_metadata(current->__orig_loc);
 
 				/* File data */
 
@@ -143,7 +165,7 @@
 				current->__orig_loc    = dupcat(root_path, current->path, "", "");		/* eg. '/tmp/test/' + 'directory/file.dat'. This string us used so that ba_save() knows where to read the source file from when writing to the archive. */
 
 				/* Directory metadata */
-				current->meta = ba_get_meta(current->__orig_loc);
+				current->meta = ba_get_metadata(current->__orig_loc);
 
 				/* Run on the subdirectory */
 				__rec_getdir_func(current->path, root_path, &(current->child_entries), current, data_size);
@@ -181,7 +203,7 @@
 		return offsetof(struct dirent, d_name) + name_max + 1;
 	}
 
-	ba_Meta* ba_get_meta(char *path)
+	ba_Meta* ba_get_metadata(char *path)
 	{
 		/* Returns a struct containing the metadata for the given file	*/
 

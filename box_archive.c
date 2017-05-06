@@ -502,6 +502,9 @@ void __ba_process_xml_dir(fsize_t *total_size, ezxml *parent_xml, ba_Entry **fir
 
 ba_Entry* __ba_get_file_metadata(ezxml *file_node, ba_Entry *parent_dir)
 {
+	check(file_node, "Null-pointer given to __ba_get_file_metadata for 'ezxml *file_node'.");
+	/* We don't need to null-check for parent_dir because we may be in the toplevel directory */
+
 	/* Reads a file's metadata from the given XML node,	*
 	 * and puts it into a ba_Entry and ba_File struct.	*/
 
@@ -510,8 +513,13 @@ ba_Entry* __ba_get_file_metadata(ezxml *file_node, ba_Entry *parent_dir)
 
 	ba_Entry *file_entry = malloc(sizeof(ba_Entry));	/* The entry used to represent the file in memory */
 	ba_File  *file_data  = malloc(sizeof(ba_File));		/* The struct used to hold the file's size, start position in the box archive, and a buffer of the contents */
-	ba_Meta  *meta       = calloc(1, sizeof(ba_Meta));		/* The struct used to hold the entry's metadata appart from its name, path and size */
+	ba_Meta  *meta       = malloc(sizeof(ba_Meta));		/* The struct used to hold the entry's metadata appart from its name, path and size */
 	check(file_entry && file_data && meta, "Out of memory.");
+
+	/* Before creating anything, check for the *compulsory* metadata */
+	check(ezxml_attr(file_node, "name"),  "Entry '%s' missing 'name' value.", joint_file_name);
+	check(ezxml_attr(file_node, "size"),  "Entry '%s' missing 'size' value.", joint_file_name);
+	check(ezxml_attr(file_node, "start"), "Entry '%s' missing 'start' value.", joint_file_name);
 
 	file_entry->meta       = meta;
 	file_entry->file_data  = file_data;
@@ -522,14 +530,22 @@ ba_Entry* __ba_get_file_metadata(ezxml *file_node, ba_Entry *parent_dir)
 	file_entry->path = joint_file_name;		/* Note: the string will be freed when the struct is freed.	*/
 	file_entry->type = ba_EntryType_FILE;
 
-	file_data->buffer      = NULL;						/* The file will only be loaded into memory if it is being modified, or if the source archive file is being overwritten. */
-	file_data->__size      = atoi( ezxml_attr(file_node, "size")  );
-	file_data->__start     = atoi( ezxml_attr(file_node, "start") );
-	file_data->__old_start = -1;
+	file_entry->meta->atime = (time_t) (ezxml_attr(file_node, "atime") ? atoll(ezxml_attr(file_node, "atime")) : 0);
+	file_entry->meta->mtime = (time_t) (ezxml_attr(file_node, "mtime") ? atoll(ezxml_attr(file_node, "mtime")) : 0);
+
+	file_entry->file_data->buffer      = NULL;						/* The file will only be loaded into memory if it is being modified, or if the source archive file is being overwritten. */
+	file_entry->file_data->__size      = atoi( ezxml_attr(file_node, "size")  );
+	file_entry->file_data->__start     = atoi( ezxml_attr(file_node, "start") );
+	file_entry->file_data->__old_start = -1;
 
 	return file_entry;
 
 error:
+	free(file_entry);
+	free(file_data);
+	free(meta);
+	free(joint_file_name);
+
 	return NULL;
 }
 
@@ -544,7 +560,11 @@ ba_Entry* __ba_get_dir_metadata(ezxml *dir_node, ba_Entry *parent_dir)
 	ba_Entry *dir  = malloc(sizeof(ba_Entry));
 	ba_Meta  *meta = calloc(1, sizeof(ba_Meta));
 
-	check(dir, "malloc returned NULL.");
+	check(dir,  "Out of memory.");
+	check(meta, "Out of memory.");
+
+	/* Check for the compulsory metadata */
+	check(ezxml_attr(dir_node, "name"),  "Entry '%s' missing 'name' value.", joint_dir_name);
 
 	dir->type = ba_EntryType_DIR;
 	dir->name = strdup( (const char*) ezxml_attr(dir_node, "name") );
@@ -555,11 +575,18 @@ ba_Entry* __ba_get_dir_metadata(ezxml *dir_node, ba_Entry *parent_dir)
 	dir->parent_dir = parent_dir;
 	dir->child_entries = NULL;		/* For *now*. This will ba changed by calling __ba_get_file_metadata() on the direcotry. */
 
+	dir->meta->atime = (time_t) (ezxml_attr(dir_node, "atime") ? atoll(ezxml_attr(dir_node, "atime")) : 0);	/* Remember these attributes are not compulsory and may not be present, so we have to be prepared for them not being there. */
+	dir->meta->mtime = (time_t) (ezxml_attr(dir_node, "mtime") ? atoll(ezxml_attr(dir_node, "mtime")) : 0);
+
 	dir->next = NULL;	/* Will be changed once another file/dir is loaded in the same parent dir */
 
 	return dir;
 
 error:
+	free(dir);
+	free(meta);
+	free(joint_dir_name);
+
 	return NULL;
 }
 
@@ -585,8 +612,11 @@ int ba_extract(BoxArchive *arch, ba_Entry *file_entry, char *dest)
 	}
 
 	fclose(out_file);
-
 	free(data);
+
+	/* Write the metadata */
+
+	ba_write_metadata(dest, file_entry->meta);
 
 	return 0;
 
@@ -653,7 +683,7 @@ ba_Entry* ba_add_file(BoxArchive *arch, ba_Entry **parent_entry, char *file_name
 	/* Metadata */
 	if (loc != NULL)
 	{
-		add_entry->meta = ba_get_meta(loc);
+		add_entry->meta = ba_get_metadata(loc);
 
 		check(add_entry->meta, "Could not get entry metadata.");
 	}
@@ -711,7 +741,7 @@ ba_Entry* ba_add_dir(BoxArchive *arch, ba_Entry **parent_entry, char *dir_name)
 	add_entry->__orig_loc = NULL;
 	add_entry->path       = dupcat((parent_entry ? (*parent_entry)->path : ""), dir_name, (dir_name[strlen(dir_name)-1] == BA_SEP[0] ? "" : BA_SEP), "");
 	add_entry->name       = strdup(dir_name);
-	add_entry->meta       = ba_get_meta(dir_name);
+	add_entry->meta       = ba_get_metadata(dir_name);
 	add_entry->file_data  = NULL;
 	add_entry->parent_dir = (parent_entry ? *parent_entry : NULL);		/* Doesn't matter if this is NULL */
 	add_entry->child_entries = NULL;		/* For now... */

@@ -6,8 +6,9 @@
 
   #include "box_archive.h"
 
-  #define BOX_ARCHIVER_VERSION "v0.09 Dev alpha"
+  #define BOX_ARCHIVER_VERSION "development alpha"
   #define BOX_ARCHIVER_LICENSE "LGPLv2.1"
+  #define BOX_ARCHIVER_STRLEN 64	/* Length of strings used to store atimes and mtimes before printing them. */
 
   enum Job {
 	  NONE = 0,
