@@ -1,0 +1,113 @@
+ THE ENTRY TREE
+----------------
+
+  BA = BoxArchive
+  E  = ba_Entry
+  F  = ba_File
+
+  +----+
+  | BA |----+
+  +----+    |
+            V
+          +---+   +---+   +---+          +---+
+          | E |-->| E |-->| E |--------->| E |
+          +---+   +---+   +---+          +---+
+            |       |       |              |
+            V       V       |              V
+          +---+   +---+     |            +---+
+          | F |   | F |     |            | F |
+          +---+   +---+     | (subdir)   +---+
+                            V
+                          +---+   +---+
+                          | E |-->| E |
+                          +---+   +---+
+                            |       |
+                            V       V
+                          +---+   +---+
+                          | F |   | F |
+                          +---+   +---+
+                            
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+A bit more detailed...
+(Not related to the one above)
+
+
+  +-------- BoxArchive ---------+
+  |                             |       
+  | char *loc   -----------------------> "/home/john/stuff.box"
+  |                             |
+  | char *header    -------------------> "<header><file name="test.txt" size="32" start="0" /><dir name="directory"><file name="other.txt" size="64" start="32" /></dir></header>"
+  |                             |
+  | FILE *file  -----------------------> fopen("/home/john/stuff.box", "r");
+  |                             |
+  | ba_Entry *entry_list    ------------+
+  |                             |       |
+  +-----------------------------+       |
+                                        |
+                                        V
+                            +----------------- ba_Entry ----------------+                               +------------------ ba_Entry ---------------+
+                            |                                           |                               |                                           |
+                            |   enum ba_EntryType = ba_EntryType_FILE   |                               |   enum ba_EntryType = ba_EntryType_DIR    |     
+                            |                                           |                               |                                           |
+                            |   char *path  -------------------------------> "test.txt"                 |   char *path  --------------------------------> "directory/"
+                            |                                           |                               |                                           |
+                            |   char *name  -------------------------------> "test.txt"                 |   char *name  --------------------------------> "directory"
+                            |                                           |                               |                                           |
+                            |   struct ba_File  *file_data  ----------------+                           |   struct ba_File  *file_data     = NULL   |
+                            |                                           |   |                           |                                           |
+                            |   struct ba_Entry *parent_dir    = NULL   |   |                           |   struct ba_Entry *parent_dir    = NULL   |
+                            |                                           |   |                           |                                           |
+                            |   struct ba_Entry *child_entries = NULL   |   |                           |   struct ba_Entry *child_entries  ------------+
+                            |                                           |   |                           |                                           |   |
+                            |   struct ba_Entry *next   ----------------------------------------------->|   struct ba_Entry *next = NULL            |   |
+                            |                                           |   |                           |                                           |   |
+                            +-------------------------------------------+   |                           +-------------------------------------------+   |
+                                                                            |                                                                           |
+                                                                            |                                                                           |
+                                                                    +-------+                                                                           |
+                                                                    |                                                                       +-----------+
+                                                                    V                                                                       V        
+                            +----------------- ba_File -----------------+                               +------------------ ba_Entry----------------+
+                            |                                           |                               |                                           |
+                            |   uint8_t *buffer  --------------------------> {0x54, 0x68, 0x69 ...}     |   enum ba_EntryType = ba_EntryType_FILE   |
+                            |                                           |                               |                                           |
+                            |   offset_t __size  = 32                   |                               |   char *path  -------------------------------> "directory/other.txt"
+                            |                                           |                               |                                           |
+                            |   offset_t __start = 0                    |                               |   char *name  -------------------------------> "other.txt"
+                            |                                           |                               |                                           |
+                            +-------------------------------------------+                               |   struct ba_File  *file_data  ----------------+
+                                                                                                        |                                           |   |
+                                                                                                        |   struct ba_Entry *parent_dir    = NULL   |   |
+                                                                                                        |                                           |   |
+                                                                                                        |   struct ba_Entry *child_entries = NULL   |   |
+                                                                                                        |                                           |   |
+                                                                                                        |   struct ba_Entry *next = NULL            |   |
+                                                                                                        |                                           |   |
+                                                                                                        +-------------------------------------------+   |
+                                                                                                                                                        |
+                                                                                                                                                        |
+                                                                                                                                            +-----------+
+                                                                                                                                            |
+                                                                                                                                            V
+                                                                                                        +------------------ ba_File ----------------+
+                                                                                                        |                                           |
+                                                                                                        |   uint8_t *buffer = NULL  (data will be   |
+                                                                                                        |                            read from      |
+                                                                                                        |   offset_t __size  = 64    arch->file)    |
+                                                                                                        |                                           |
+                                                                                                        |   offset_t __start = 32                   |
+                                                                                                        |                                           |
+                                                                                                        +-------------------------------------------+
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
