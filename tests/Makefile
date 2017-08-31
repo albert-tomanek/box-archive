@@ -2,7 +2,7 @@ TARGET = tests
 LIBS = -lcmocka
 CC = gcc
 CFLAGS = -g -O0 -Wall
-WRAP = ba_get_metadata,ba_fsize
+WRAP = --wrap=ba_get_metadata,--wrap=ba_fsize
 BALIB = ../libboxarchive.0.09.a
 
 .PHONY: default all clean tests files
@@ -10,7 +10,7 @@ BALIB = ../libboxarchive.0.09.a
 default: $(TARGET)
 all: default
 
-TESTFILES = ba_new.o ba_add_dir.o
+TESTFILES = ba_new.o ba_add_dir.o ba_add_file.c
 
 %.o: %.c $(HEADERS)
 	$(CC) $(CFLAGS) -c $< -o $@
@@ -18,11 +18,12 @@ TESTFILES = ba_new.o ba_add_dir.o
 .PRECIOUS: $(TARGET) $(OBJECTS)
 
 $(TARGET): files
-	$(CC) -Wl,--wrap=$(WRAP) -o $(TARGET) tests.c $(TESTFILES) $(BALIB) $(LIBS)
+	$(CC) -Wl,$(WRAP) -o $(TARGET) tests.c $(TESTFILES) $(BALIB) $(LIBS)
 
 files:
-	$(CC) -c ba_add_dir.c
-	$(CC) -c ba_new.c
+	$(CC) $(CFLAGS) -c ba_new.c
+	$(CC) $(CFLAGS) -c ba_add_dir.c
+	$(CC) $(CFLAGS) -c ba_add_file.c
 
 clean:
 	-rm -f *.o

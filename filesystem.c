@@ -228,23 +228,23 @@
 		return NULL;
 	}
 
-	fsize_t ba_fsize(char *loc)
+	fsize_t ba_fsize(char *path)
 	{
 		/* From: http://www.securecoding.cert.org/confluence/plugins/servlet/mobile#content/view/42729539 */
 
 		struct stat file_stat;
 
 		/* Ensure that it exists */
-		if (stat(loc, &file_stat) != 0)
+		if (stat(path, &file_stat) != 0)
 		{
-			log_err("Filesystem entry \"%s\" not found.", loc);
+			log_err("Filesystem entry \"%s\" not found.", path);
 			goto error;
 		}
 
 		/* Ensure that is is a regular file */
 		if ( (!S_ISREG(file_stat.st_mode)) )
 		{
-			log_err("Filesystem entry \"%s\" is not a file.", loc);
+			log_err("Filesystem entry \"%s\" is not a file.", path);
 			goto error;
 		}
 

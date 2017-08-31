@@ -11,7 +11,7 @@ void test_ba_add_dir(void **state)
 
 	/* Test the function */
 
-	BoxArchive *arch = test_box_archive_new();
+	BoxArchive *arch = *state;
 	ba_Entry *parent_dir = arch->entry_tree;
 
 	ba_Entry *new = ba_add_dir(arch, &parent_dir, "newDir");		// &arch->entry_tree = the 'myDir' directory
@@ -30,6 +30,4 @@ void test_ba_add_dir(void **state)
 	assert_ptr_equal     (new->file_data, NULL);
 	assert_ptr_equal     (new->parent_dir, parent_dir);
 	assert_ptr_equal     (new->child_entries, NULL);
-
-	test_box_archive_free(arch);
 }

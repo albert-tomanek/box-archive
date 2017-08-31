@@ -1,10 +1,5 @@
 #include "tests.h"
 
-void __wrap_bael_add(ba_Entry **first_entry, ba_Entry *add_entry)
-{
-	expect_any(first_entry, add_entry);
-}
-
 void test_ba_move(void **state)
 {
 	/* Set up __wrap_ba_get_metadata */
@@ -16,7 +11,7 @@ void test_ba_move(void **state)
 
 	/* Test the function */
 
-	BoxArchive *arch = test_box_archive_new();
+	BoxArchive *arch = *state;
 	ba_Entry *parent_dir = arch->entry_tree;
 
 	ba_Entry *new = ba_add_dir(arch, &parent_dir, "newDir");		// &arch->entry_tree = the 'myDir' directory

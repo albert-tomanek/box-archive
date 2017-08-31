@@ -1,11 +1,3 @@
-/* NOTE: I only check for significant things.				*
- *       I don't check for null-pointer handling because:	*
- *		 A) There are too many pointers to check.			*
- *		 B) The pointer should be checked at runtime using	*
- *		    the check() macro.								*
- *		 C) I have much more fun things to be doing with my	*
- *		    time.											*/
-
 #include <string.h>
 #include <stdarg.h>		// These are all here for cmocka to function
 #include <stddef.h>
@@ -19,6 +11,7 @@
 
 BoxArchive* test_box_archive_new()
 {
+	//      |
 	//   [myDir]---[hello.txt]
 	//      |
 	// [floppy.gif]
@@ -131,6 +124,25 @@ void test_box_archive_free(BoxArchive *arch)
 	free(arch);
 }
 
+/* The 'state' double-pointer is just a pointer for custom data	*
+ * passed to every unit test. In our case it points to a		*
+ * pointer to a BoxArchive struct which is created and freed	*
+ * before and after each unit test using the above functions.	*/
+
+static int ba_test_setup(void **state)
+{
+	*state = test_box_archive_new();
+	
+	return 0;
+}
+
+static int ba_test_teardown(void **state)
+{
+	test_box_archive_free(*state);
+	
+	return 0
+}
+
 /* Wrap functions */
 
 ba_Meta *__wrap_ba_get_metadata(char *dir_name)
@@ -145,11 +157,16 @@ ba_Meta *__wrap_ba_get_metadata(char *dir_name)
 	return meta;
 }
 
-fsize_t __wrap_ba_fsize(char *loc)
+fsize_t __wrap_ba_fsize(char *path)
 {
-	check_expected(loc);
+	check_expected(path);
 	
 	return mock();
+}
+
+void __wrap_bael_add(ba_Entry **first_entry, ba_Entry *new_entry)
+{
+	check_expected(first_entry);
 }
 
 //void test_myFunc(void **state)			// unused parameter
@@ -169,11 +186,11 @@ fsize_t __wrap_ba_fsize(char *loc)
 
 int main()
 {
-	const struct CMUnitTest tests[] = {
-		cmocka_unit_test(test_ba_new),
-		cmocka_unit_test(test_ba_add_dir),
-		cmocka_unit_test(test_ba_add_file)
+	const struct CMUnitTest ba_tests[] = {
+		cmocka_unit_test_setup_teardown(test_ba_new,				ba_test_setup, ba_test_teardown),
+		cmocka_unit_test_setup_teardown(test_ba_add_dir,			ba_test_setup, ba_test_teardown),
+		cmocka_unit_test_setup_teardown(test_ba_add_file_subdir,	ba_test_setup, ba_test_teardown)
 	};
 
-	return cmocka_run_group_tests(tests, NULL, NULL);
+	return cmocka_run_group_tests(ba_tests, NULL, NULL);
 }

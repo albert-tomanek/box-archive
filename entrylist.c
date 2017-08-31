@@ -82,7 +82,8 @@ void bael_free(ba_Entry **first_entry)	/* Double-pointer because we will be chan
 	while (current_entry)
 	{
 		next = current_entry->next;
-
+		
+		if (current_entry->meta)			free(current_entry->meta);
 		if (current_entry->file_data)		ba_file_free(&(current_entry->file_data));
 		if (current_entry->child_entries)	bael_free(   &(current_entry->child_entries));		/* Free the child entries */
 		ba_entry_free(current_entry);	/* Free the ba_Entry struct that it points to. */

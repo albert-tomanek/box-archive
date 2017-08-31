@@ -17,6 +17,6 @@ void test_box_archive_free(BoxArchive *arch);
 /* Tested functions */
 void test_ba_new(void **state);
 void test_ba_add_dir(void **state);
-void test_ba_add_file(void **state);
+void test_ba_add_file_subdir(void **state);
 
 #endif
