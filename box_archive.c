@@ -724,6 +724,7 @@ ba_Entry* ba_add_file(BoxArchive *arch, ba_Entry **parent_entry, char *file_name
 	return add_entry;
 
 error:
+	free(add_entry);
 	return NULL;
 }
 
@@ -739,7 +740,7 @@ ba_Entry* ba_add_dir(BoxArchive *arch, ba_Entry **parent_entry, char *dir_name)
 
 	add_entry->type       = ba_EntryType_DIR;
 	add_entry->__orig_loc = NULL;
-	add_entry->path       = dupcat((parent_entry ? (*parent_entry)->path : ""), dir_name, (dir_name[strlen(dir_name)-1] == BA_SEP[0] ? "" : BA_SEP), "");
+	add_entry->path       = dupcat((parent_entry ? (*parent_entry)->path : ""), BA_SEP, dir_name, "");
 	add_entry->name       = strdup(dir_name);
 	add_entry->meta       = ba_get_metadata(dir_name);
 	add_entry->file_data  = NULL;

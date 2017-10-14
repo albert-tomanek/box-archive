@@ -16,6 +16,14 @@ and can therefore be used in closed-source projects.
 
 (For a tutorial see doc/tutorial.txt)
 
+FAQ
+===
+Q: Why are the unit tests in C++?
+A: I plan to use the box archiver in a larger project written in C++ (with tests in C++)
+   so using the same test framework makes sense. Also, I was already familliar with 
+   unittest-cpp and didn't want to have to learn a new framework. Don't worry though --
+   the library itself is still plain C :)
+
 CONTRIBUTING
 ============
 If you want to learn about how the BoxArchive library works,
@@ -56,6 +64,18 @@ sudo make install
 
 To uninstall:
 sudo make uninstall
+
+TESTING
+=======
+Tests are written using unittest-cpp (see FAQ) and HippoMocks,
+so you will need a C++ compiler and those installed for the tests to compile.
+
+To compile and run the tests:
+make tests
+
+The previously mentioned projects can be obtained at:
+	[https://github.com/unittest-cpp/unittest-cpp.git]
+	[https://github.com/dascandy/hippomocks.git]
 
 FILES
 =====
