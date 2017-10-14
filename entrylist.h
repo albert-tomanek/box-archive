@@ -3,6 +3,10 @@
 
 /* Just a simple linked list of filesystem entry structs */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef __BOX_ARCHIVE_ENTRYLIST_H__
   #define __BOX_ARCHIVE_ENTRYLIST_H__
 
@@ -15,4 +19,8 @@
   int  		bael_count	(ba_Entry *first);
   void 		bael_free	(ba_Entry **first_entry);
 
+#endif
+
+#ifdef __cplusplus
+}
 #endif

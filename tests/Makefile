@@ -22,7 +22,7 @@ all: default
 	$(CC) -isystem $(HEADERS_DIR) $(CFLAGS) -o $@ -c $<
 
 $(TARGET): $(TEST_CODE)
-	$(CC) $(TEST_SUBJECTS) $(TEST_CODE) tests.cpp $(UTPP_LIB) $(CFLAGS) -o $@
+	$(CC) $(TEST_CODE) $(TEST_SUBJECTS) tests.cpp $(UTPP_LIB) $(CFLAGS) -o $@
 
 run: $(TARGET)
 	./$(TARGET)

@@ -1,6 +1,10 @@
 /* Copyright (C) 2017  Albert Tomanek *
  * For license see LICENSE.txt        */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef __BOX_ARCHIVER_FILESYSTEM_H__
   #define __BOX_ARCHIVER_FILESYSTEM_H__
 
@@ -13,4 +17,8 @@
   ba_Meta* ba_get_metadata(char *path);		/* Gets the metadata for the given file in the filesystem	*/
   fsize_t ba_fsize(char *path);
 
+#endif
+
+#ifdef __cplusplus
+}
 #endif

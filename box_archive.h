@@ -25,6 +25,10 @@
 	#undef  log_warn
 	#define log_warn(...)
   #endif
+  
+  #ifdef __cplusplus
+  extern "C" {
+  #endif
 
   /* Structs */
   struct BoxArchive {
@@ -67,17 +71,17 @@
 
   /* Private stuff */
 
-  void      __ba_load_dir_tree	  (fsize_t *total_size, char *orig_header, ba_Entry **first_entry);
-  void      __ba_process_xml_dir	  (fsize_t *total_size, ezxml *parent_xml, ba_Entry **first_entry, ba_Entry *parent_dir);	/* parent_dir=NULL if toplevel dir */
+  void      __ba_load_dir_tree      (fsize_t *total_size, char *orig_header, ba_Entry **first_entry);
+  void      __ba_process_xml_dir    (fsize_t *total_size, ezxml *parent_xml, ba_Entry **first_entry, ba_Entry *parent_dir);	/* parent_dir=NULL if toplevel dir */
   ba_Entry* __ba_get_file_metadata  (ezxml *file_node, ba_Entry *parent_dir);
-  ba_Entry* __ba_get_dir_metadata	  (ezxml *dir_node, ba_Entry *parent_dir);
-  ba_Entry* __ba_get_rec_func		  (ba_Entry *first_entry, char *path);
+  ba_Entry* __ba_get_dir_metadata   (ezxml *dir_node, ba_Entry *parent_dir);
+  ba_Entry* __ba_get_rec_func       (ba_Entry *first_entry, char *path);
   void      __ba_buffer_entries     (BoxArchive *arch);
   void      __ba_buffer_dir         (BoxArchive *arch, ba_Entry *first_entry);
   void      __ba_buffer_file        (BoxArchive *arch, ba_Entry *entry);
   void      __ba_treesize_rec_func  (ba_Entry *first_entry, fsize_t *size);
-  void      __ba_dir_entry_to_xml	  (ezxml *parent_node, ba_Entry *first_entry);
-  void      __ba_create_header	  (BoxArchive *arch);
+  void      __ba_dir_entry_to_xml   (ezxml *parent_node, ba_Entry *first_entry);
+  void      __ba_create_header      (BoxArchive *arch);
   int       __ba_create_archive_file(BoxArchive *arch, char *loc);	/* Returns 0 on sucess, and > 0 on failure */
   void      __ba_save_entry_dir     (ba_Entry *first_entry, FILE *infile, FILE *outfile, fsize_t *total_size);
   void      __ba_rearrange          (BoxArchive *arch);
@@ -87,5 +91,9 @@
   hdrlen_t  __ba_get_hdrlen  (FILE* file);	/* Used only by ba_load(), and not by ba_save().	*/
 
   void      __fgetstrn(char *dest, int length, FILE* file);
+  
+  #ifdef __cplusplus
+  }
+  #endif
 
 #endif

@@ -5,6 +5,10 @@
  * about a filesystem entry (file or dir),	*
  * in a BOX archive.						*/
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef __BOX_ARCHIVE_ENTRY_H__
   #define __BOX_ARCHIVE_ENTRY_H__
 
@@ -45,4 +49,8 @@
   const char* ba_entry_nice_type(enum ba_EntryType type);
   const char* ba_entry_xml_type (enum ba_EntryType type);
 
+#endif
+
+#ifdef __cplusplus
+}
 #endif

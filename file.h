@@ -5,11 +5,14 @@
  * data about a file (such as start and size).		*
  * A struct containing the metadata is pointed to.	*/
 
-#include <stdint.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #ifndef __BOX_ARCHIVE_FILE_H__
   #define __BOX_ARCHIVE_FILE_H__
-
+  
+  #include <stdint.h>
   #include "types.h"
 
   struct ba_File
@@ -27,4 +30,8 @@
 
   void ba_file_free(struct ba_File **file);		/* A free function for our ba_File struct */
 
+#endif
+
+#ifdef __cplusplus
+}
 #endif

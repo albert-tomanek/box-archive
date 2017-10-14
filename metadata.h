@@ -2,6 +2,10 @@
  * This metadata must be able to apply to both 		*
  * files and directories.							*/
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef __BOX_ARCHIVE_META_H__
   #define __BOX_ARCHIVE_META_H__
 
@@ -16,5 +20,9 @@
   typedef struct ba_Meta ba_Meta;
 
   void ba_meta_free(ba_Meta *meta);
+  
+#endif
 
+#ifdef __cplusplus
+}
 #endif
