@@ -18,7 +18,10 @@ extern "C" {
   ba_Entry*	bael_get	(ba_Entry *first_entry, char *path);				/* Return a pointer to the struct with the given path. *Does* work with entry trees now. */
   int  		bael_count	(ba_Entry *first);
   void 		bael_free	(ba_Entry **first_entry);
-
+  
+  ba_Entry* __bael_getlast(ba_Entry *first);
+  ba_Entry* __bael_getprev(ba_Entry *first_entry, ba_Entry *next_entry);
+  
 #endif
 
 #ifdef __cplusplus

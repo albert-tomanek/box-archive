@@ -554,8 +554,7 @@ ba_Entry* __ba_get_dir_metadata(ezxml *dir_node, ba_Entry *parent_dir)
 	/* Reads a directory's metadata from the given XML node,	*
 	 * and puts it into a ba_Entry struct.						*/
 
-	char *joint_dir_name;
-	joint_dir_name = dupcat( parent_dir ? parent_dir->path : "", (const char*) ezxml_attr(dir_node, "name"), BA_SEP, "");
+	char *joint_dir_name = dupcat( parent_dir ? parent_dir->path : "", (const char*) ezxml_attr(dir_node, "name"), BA_SEP, "");
 
 	ba_Entry *dir  = malloc(sizeof(ba_Entry));
 	ba_Meta  *meta = calloc(1, sizeof(ba_Meta));
@@ -634,7 +633,8 @@ void ba_add(BoxArchive *arch, ba_Entry **parent_entry, ba_Entry *add_entry)
 	 * is correctly filled in, otherwise there will be	*
 	 * errors at later stages. You are urged to use		*
 	 * ba_add_file() & ba_add_dir() unless you know		*
-	 * what you're doing.								*/
+	 * what you're doing. Also you're going to have to	*
+	 * increment the archive's ->__data_size yourself.	*/
 
 	check(add_entry   , "Null pointer given for ba_Entry *add_entry to ba_add().");
 
@@ -650,9 +650,6 @@ void ba_add(BoxArchive *arch, ba_Entry **parent_entry, ba_Entry *add_entry)
 
 		bael_add(&(arch->entry_tree), add_entry);
 	}
-
-	/* Increment the data size */
-	arch->__data_size += add_entry->file_data->__size;
 
 error:
 	return;
@@ -954,15 +951,13 @@ ba_Entry* ba_get(BoxArchive *arch, char *path)
 	check(arch, "Null pointer given for BoxArchive *arch to ba_get().");
 	check(path, "Null pointer given for char *orig_path to ba_get().");
 
-	ba_Entry *return_entry = __ba_get_rec_func(arch->entry_tree, path);
-
-	return    return_entry;
+	return __ba_get_rec_func(arch->entry_tree, path);
 
 error:
 	return NULL;
 }
 
-ba_Entry* __ba_get_rec_func(ba_Entry *first_entry, char *path)
+ba_Entry* __ba_get_rec_func(ba_Entry *first_entry, char *path)		// TODO: Yes this CAN be done in a much more efficient way than to go through the whole tree finding a path that matches and I'm planning to improve this in the future
 {
 	if (! first_entry)	return NULL;
 
@@ -970,7 +965,7 @@ ba_Entry* __ba_get_rec_func(ba_Entry *first_entry, char *path)
 
 	while (current)
 	{
-		if (! strcmp(current->path, path))		/* This works whether it's a file, or a direcotry */
+		if (! strcmp(current->path, path))		// This works regardless of whether it's a file, or a direcotry
 		{
 			return current;
 		}

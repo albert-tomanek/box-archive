@@ -17,7 +17,7 @@ extern "C" {
   #include "file.h"
 
   enum ba_EntryType {
-	  be_EntryType_UNSPECIFIED = 0,
+	  ba_EntryType_UNSPECIFIED = 0,
 	  ba_EntryType_FILE,
 	  ba_EntryType_DIR
   };

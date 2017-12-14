@@ -47,7 +47,7 @@
 
   /* Functions */
   BoxArchive* 	ba_new();
-  BoxArchive* 	ba_open(char *loc);           /* The uint8_t is used to store a boolean value */
+  BoxArchive* 	ba_open(char *loc);
   void			ba_save(BoxArchive *arch, char *loc);
   void			ba_close(BoxArchive *arch);
   ba_Entry*		ba_get_entries(BoxArchive *arch);			/* Returns a pointer to the archive's entry tree */
@@ -69,7 +69,7 @@
   char*  	ba_get_header(BoxArchive *arch);			/* Returns pointer to heap; don't forget to free() it */
   uint8_t 	ba_get_format(BoxArchive *arch);			/* Returns the format version of the given archive, and 0 if the format is invalid.*/
 
-  /* Private stuff */
+  /* Private functions */
 
   void      __ba_load_dir_tree      (fsize_t *total_size, char *orig_header, ba_Entry **first_entry);
   void      __ba_process_xml_dir    (fsize_t *total_size, ezxml *parent_xml, ba_Entry **first_entry, ba_Entry *parent_dir);	/* parent_dir=NULL if toplevel dir */

@@ -1,5 +1,6 @@
  - ba_add_file create a zero-byte file if loc is NULL.
+ - Rename 'ba_File' to 'ba_FileData'
+ - Rename identifiers named 'loc' to 'path'
  - Review usage of ints.h functions
- - Change #defines in types.h to typedefs.
+ - Change #defines in types.h to typedefs or remove completely.
  - Get rid of getopt(), and implement 7z-style syntax.
-

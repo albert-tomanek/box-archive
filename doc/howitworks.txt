@@ -93,7 +93,7 @@ which varies by platform.
 
 ->name is the name of the entry.
 For the file "media/pictures/cool stuff/DSC_0481.JPG" this would be "DSC_0481.JPG",
-and for the directory "fonts/ttf/" this would be "ttf".
+and for the directory "fonts/ttf/" this would be "ttf". Directory names do NOT contain the trailing '/'.
 NOTE: Both ->path and ->name are malloc()'ed and so are free()'d by ba_entry_free().
 
 ->meta points to a ba_Meta struct containing all other metadata about the entry,

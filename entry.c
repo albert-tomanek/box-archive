@@ -12,9 +12,7 @@ void ba_entry_free(ba_Entry *entry)
 	if (entry->path)		free(entry->path);			/* entry->path should *hopefully* be on heap */
 	if (entry->__orig_loc)	free(entry->__orig_loc);
 	if (entry->meta)		free(entry->meta);
-
-	/* Does NOT free the ->file_data struct;	*
-	 * this is done by bael_free().				*/
+	if (entry->file_data)	ba_file_free(&(entry->file_data));
 
 	free(entry);
 }
@@ -34,7 +32,7 @@ const char* ba_entry_nice_type(enum ba_EntryType type)
 
 const char* ba_entry_xml_type(enum ba_EntryType type)
 {
-	/* Returns the type of entry as the name of its XML tag		*/
+	/* Returns the type of entry as the name of its XML tag	*/
 
 	if (type == ba_EntryType_FILE)	return "file";
 	if (type == ba_EntryType_DIR)	return "dir";
