@@ -18,7 +18,8 @@ extern "C" {
   };
 
   typedef struct ba_Meta ba_Meta;
-
+  
+  ba_Meta *ba_meta_default();		// Creates a struct containing the default metadata for a standard, newly-created file.
   void ba_meta_free(ba_Meta *meta);
   
 #endif

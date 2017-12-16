@@ -604,11 +604,7 @@ int ba_extract(BoxArchive *arch, ba_Entry *file_entry, char *dest)
 	FILE* out_file = fopen(dest, "w+");
 	check(out_file, "File \"%s\" could not be opened for writing.", dest);
 
-	for (fsize_t offset = 0; offset < file_size; offset++)
-	{
-		/* Write each byte out to the file */
-		fputc(data[offset], out_file);
-	}
+	fwrite(data, 1, file_size, out_file);
 
 	fclose(out_file);
 	free(data);
@@ -668,7 +664,7 @@ ba_Entry* ba_add_file(BoxArchive *arch, ba_Entry **parent_entry, char *file_name
 
 	add_entry->type       = ba_EntryType_FILE;
 	add_entry->__orig_loc = loc ? strdup(loc) : NULL;
-	add_entry->path       = dupcat((parent_entry ? (*parent_entry)->path : ""), file_name, "", "");
+	add_entry->path       = dupcat((parent_entry ? (*parent_entry)->path : ""), BA_SEP, file_name, "");
 	add_entry->name       = strdup(file_name);
 	add_entry->meta       = NULL;	// FOR NOW; we're filling this in later in the function.
 	add_entry->file_data  = malloc(sizeof(ba_File));
@@ -680,19 +676,17 @@ ba_Entry* ba_add_file(BoxArchive *arch, ba_Entry **parent_entry, char *file_name
 	/* Metadata */
 	if (loc != NULL)
 	{
+		/* Existing files */
 		add_entry->meta = ba_get_metadata(loc);
 
-		check(add_entry->meta, "Could not get entry metadata.");
+		check(add_entry->meta, "Error getting entry metadata.");
 	}
 	else
 	{
 		/* Newly created (zero-byte) files */
-
-		add_entry->meta = malloc(sizeof(ba_Meta));
-		check(add_entry->meta, "Out of memory.");
-
-		add_entry->meta->atime = time(NULL);	// Set the access and modification time to now
-		add_entry->meta->mtime = time(NULL);
+		add_entry->meta = ba_meta_default();
+		
+		check(add_entry->meta, "Error creating entry metadata.");
 	}
 
 	/* Fill in the file data */					/* These are ESSENTIAL. Without them __ba_create_archive_file() would crash and burn. */
@@ -739,10 +733,10 @@ ba_Entry* ba_add_dir(BoxArchive *arch, ba_Entry **parent_entry, char *dir_name)
 	add_entry->__orig_loc = NULL;
 	add_entry->path       = dupcat((parent_entry ? (*parent_entry)->path : ""), BA_SEP, dir_name, "");
 	add_entry->name       = strdup(dir_name);
-	add_entry->meta       = ba_get_metadata(dir_name);
+	add_entry->meta       = ba_meta_default();
 	add_entry->file_data  = NULL;
 	add_entry->parent_dir = (parent_entry ? *parent_entry : NULL);		/* Doesn't matter if this is NULL */
-	add_entry->child_entries = NULL;		/* For now... */
+	add_entry->child_entries = NULL;		/* Until stuff is added into the directory */
 
 	if (parent_entry)
 	{
@@ -986,7 +980,7 @@ ba_Entry* __ba_get_rec_func(ba_Entry *first_entry, char *path)		// TODO: Yes thi
 uint8_t* ba_get_file_contents(BoxArchive *arch, ba_Entry *entry, fsize_t *size)
 {
 	/* This function returns a copy of the file's contents	*
-	 * (irrelevant of their source), and sets *size to the	*
+	 * (irrelevant of their source), and sets size to the	*
 	 * size of the returned data. 							*
 	 * For text files use ba_get_textfile_contents().		*/
 

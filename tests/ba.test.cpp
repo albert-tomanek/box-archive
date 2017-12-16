@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <time.h>
 
 #define  NO_HIPPOMOCKS_NAMESPACE
 #include <HippoMocks/hippomocks.h>
@@ -6,6 +7,7 @@
 
 #include "../box_archive.h"
 #include "../entrylist.h"
+#include "../filesystem.h"
 
 #include "test_functs.h"
 
@@ -76,7 +78,7 @@ SUITE (BoxArchive)
 
 	TEST (ba_add_IntoSubDirectory)
 	{
-		ba_Entry **tmp;				// This is used by test_box_archive_new to store pointers to the initial entries so that test_box_archive_close can free them.
+		ba_Entry **tmp;
 		BoxArchive *arch = test_box_archive_new(&tmp);
 		
 		ba_Entry *dummy_entry = test_file_entry_new("count.txt", "count.txt");
@@ -85,6 +87,130 @@ SUITE (BoxArchive)
 		CHECK(tmp[1]->next == dummy_entry);
 		
 		ba_entry_free(dummy_entry);
+		test_box_archive_free(arch, &tmp);
+	}
+
+	TEST (ba_add_file)
+	{
+		MockRepository mocks;
+		ba_Entry **tmp;
+		BoxArchive *arch = test_box_archive_new(&tmp);
+		char *file_path = "./floppy.gif";
+		ba_Meta *meta = (ba_Meta *) malloc(sizeof(ba_Meta));
+		size_t fsize = 0x73697a65;
+		size_t old_arch_size = arch->__data_size;
+
+		mocks.ExpectCallFunc(ba_get_metadata).Return(meta);
+		mocks.ExpectCallFunc(ba_fsize).Return(fsize);
+		mocks.ExpectCallFunc(bael_add);
+		
+		ba_Entry *new_entry = ba_add_file(arch, &tmp[0], "file.dat", file_path);
+		
+		CHECK(new_entry != NULL);
+		CHECK(new_entry->type == ba_EntryType_FILE);
+		CHECK(! strcmp(new_entry->__orig_loc, "./floppy.gif"));
+		CHECK(new_entry->__orig_loc != file_path);		// Check that the string was actually duplicated and not just the pointer copied
+		CHECK_EQUAL("myDir" BA_SEP "file.dat", new_entry->path);
+		CHECK_EQUAL("file.dat", new_entry->name);
+		CHECK(new_entry->meta == meta);
+		CHECK(new_entry->file_data != NULL);
+		CHECK(new_entry->file_data->buffer  == NULL);
+		CHECK(new_entry->file_data->__size  == fsize);
+		CHECK(new_entry->file_data->__start == -1);
+		CHECK(new_entry->file_data->__old_start == -1);
+		CHECK(new_entry->child_entries == NULL);
+		
+		CHECK(arch->__data_size == old_arch_size + fsize);		// Check that they've remembered to add the file's size to the archive's total size.
+		
+		ba_entry_free(new_entry);
+		test_box_archive_free(arch, &tmp);
+	}
+
+	TEST (ba_add_file_NewZeroByteFile)
+	{
+		MockRepository mocks;
+		ba_Entry **tmp;
+		BoxArchive *arch = test_box_archive_new(&tmp);
+		ba_Meta *meta = (ba_Meta *) malloc(sizeof(ba_Meta));
+		char *file_path = "./floppy.gif";
+		size_t fsize = 0x73697a65;
+		size_t old_arch_size = arch->__data_size;
+
+		mocks.ExpectCallFunc(ba_meta_default).Return(meta);
+		mocks.ExpectCallFunc(bael_add);
+		
+		ba_Entry *new_entry = ba_add_file(arch, &tmp[0], "file.dat", NULL);
+		
+		CHECK(new_entry != NULL);
+		CHECK(new_entry->type == ba_EntryType_FILE);
+		CHECK(new_entry->__orig_loc == NULL);			// No orig_loc since you don't need to read any data for a zero byte file
+		CHECK_EQUAL("myDir" BA_SEP "file.dat", new_entry->path);
+		CHECK_EQUAL("file.dat", new_entry->name);
+		CHECK(new_entry->meta == meta);
+		CHECK(new_entry->file_data != NULL);
+		CHECK(new_entry->file_data->buffer  == NULL);
+		CHECK(new_entry->file_data->__size  ==  0);
+		CHECK(new_entry->file_data->__start == -1);
+		CHECK(new_entry->file_data->__old_start == -1);
+		CHECK(new_entry->child_entries == NULL);
+		
+		CHECK(arch->__data_size == old_arch_size);		// Check that the archive's total size hasn't changed; we are adding a ZERO BYTE file after all.
+		
+		ba_entry_free(new_entry);
+		test_box_archive_free(arch, &tmp);
+	}
+
+	TEST (ba_add_dir)
+	{
+		MockRepository mocks;
+		ba_Entry **tmp;
+		BoxArchive *arch = test_box_archive_new(&tmp);
+		ba_Meta *meta = (ba_Meta *) malloc(sizeof(ba_Meta));
+
+		mocks.ExpectCallFunc(ba_meta_default).Return(meta);
+		mocks.ExpectCallFunc(bael_add);
+		
+		ba_Entry *new_entry = ba_add_dir(arch, &tmp[0], "new.dir");
+		
+		CHECK(new_entry != NULL);
+		CHECK(new_entry->type == ba_EntryType_DIR);
+		CHECK(new_entry->__orig_loc == NULL);
+		CHECK_EQUAL("myDir" BA_SEP "new.dir", new_entry->path);
+		CHECK_EQUAL("new.dir", new_entry->name);
+		CHECK(new_entry->meta == meta);
+		CHECK(new_entry->file_data == NULL);		// Not a file
+		CHECK(new_entry->child_entries == NULL);	// The dir has only just been created, so there should be no entries in it yet.
+		
+		ba_entry_free(new_entry);
+		test_box_archive_free(arch, &tmp);
+	}
+	
+	uint8_t* __MOCK_ba_get_file_contents(BoxArchive *arch, ba_Entry *entry, fsize_t *size)
+	{
+		*size = entry->file_data->__size;
+		return NULL;
+	}
+	
+	TEST (ba_extract)
+	{
+		MockRepository mocks;
+		ba_Entry **tmp;
+		BoxArchive *arch = test_box_archive_new(&tmp);
+		ba_Entry *entry = tmp[1];
+		uint8_t *data = (uint8_t *) malloc(entry->file_data->__size);
+		FILE *file = (FILE *) 0x46494c45;
+		char *dest = "./out.dat";
+
+		mocks.ExpectCallFunc(ba_get_file_contents).Do(__MOCK_ba_get_file_contents).Return(data);
+		mocks.ExpectCallFunc(fopen).Return(file);
+		mocks.ExpectCallFunc(fwrite).With(data, 1, entry->file_data->__size, file).Return(entry->file_data->__size);	// .Return(...) : fwrite returns the number of items (in this case bytes) written.
+		mocks.ExpectCallFunc(fclose).With(file).Return(0);
+		mocks.ExpectCallFunc(ba_write_metadata).With(dest, entry->meta);
+		
+		int rc = ba_extract(arch, entry, dest);
+
+		CHECK(rc == 0);
+		
 		test_box_archive_free(arch, &tmp);
 	}
 }
